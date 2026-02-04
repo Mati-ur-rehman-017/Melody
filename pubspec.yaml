@@ -42,6 +42,8 @@ dependencies:
 
   # Audio playback
   just_audio: ^0.9.36
+  just_audio_media_kit: ^2.1.0  # Linux/Windows desktop support
+  media_kit_libs_linux: any     # Native libraries for Linux
 
 dev_dependencies:
   flutter_test:

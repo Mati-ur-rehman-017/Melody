@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
 
 import 'pages/download_page.dart';
@@ -6,6 +7,8 @@ import 'pages/library_page.dart';
 import 'widgets/mini_player.dart';
 
 void main() {
+  // Initialize MediaKit for Linux/Windows desktop audio support
+  JustAudioMediaKit.ensureInitialized();
   _setupLogging();
   runApp(const MelodyApp());
 }

@@ -2,7 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../services/audio_player_service.dart';
-import 'audio_file_tile.dart';
+
+/// Format duration as mm:ss or hh:mm:ss
+String _formatDuration(Duration? duration) {
+  if (duration == null) return '--:--';
+
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes.remainder(60);
+  final seconds = duration.inSeconds.remainder(60);
+
+  if (hours > 0) {
+    return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+  return '$minutes:${seconds.toString().padLeft(2, '0')}';
+}
 
 /// A mini player widget that shows at the bottom when audio is playing
 class MiniPlayer extends StatelessWidget {
@@ -109,7 +122,7 @@ class MiniPlayer extends StatelessWidget {
                                 final duration = audioService.duration;
 
                                 return Text(
-                                  '${formatDuration(position)} / ${formatDuration(duration)}',
+                                  '${_formatDuration(position)} / ${_formatDuration(duration)}',
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(color: Colors.grey[600]),
                                 );

@@ -1,23 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
-import '../pages/library_page.dart';
-
-/// Format duration as mm:ss or hh:mm:ss
-String formatDuration(Duration? duration) {
-  if (duration == null) return '--:--';
-
-  final hours = duration.inHours;
-  final minutes = duration.inMinutes.remainder(60);
-  final seconds = duration.inSeconds.remainder(60);
-
-  if (hours > 0) {
-    return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-  return '$minutes:${seconds.toString().padLeft(2, '0')}';
-}
+import '../models/track.dart';
 
 class AudioFileTile extends StatelessWidget {
-  final AudioFile file;
+  final Track track;
   final bool isPlaying;
   final bool isCurrentTrack;
   final VoidCallback onTap;
@@ -25,12 +14,26 @@ class AudioFileTile extends StatelessWidget {
 
   const AudioFileTile({
     super.key,
-    required this.file,
+    required this.track,
     required this.isPlaying,
     required this.isCurrentTrack,
     required this.onTap,
     required this.onDelete,
   });
+
+  /// Get the full path to the thumbnail file
+  Future<String?> _getThumbnailPath() async {
+    if (track.thumbnailPath == null) return null;
+
+    final appDir = await getApplicationDocumentsDirectory();
+    final fullPath = '${appDir.path}/${track.thumbnailPath}';
+    final file = File(fullPath);
+
+    if (await file.exists()) {
+      return fullPath;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,32 +49,17 @@ class AudioFileTile extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // Play/Pause indicator
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: isCurrentTrack
-                      ? colorScheme.primary
-                      : colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(
-                  isPlaying ? Icons.pause : Icons.play_arrow,
-                  color: isCurrentTrack
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
+              // Thumbnail or play/pause indicator
+              _buildThumbnail(context, colorScheme),
               const SizedBox(width: 12),
 
-              // File info
+              // Track info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _formatFileName(file.name),
+                      track.title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: isCurrentTrack ? FontWeight.bold : null,
                         color: isCurrentTrack
@@ -81,16 +69,46 @@ class AudioFileTile extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      formatDuration(file.duration),
+                      track.author,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: isCurrentTrack
                             ? colorScheme.onPrimaryContainer.withValues(
-                                alpha: 0.7,
+                                alpha: 0.8,
                               )
                             : Colors.grey[600],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          track.formattedDuration,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: isCurrentTrack
+                                    ? colorScheme.onPrimaryContainer.withValues(
+                                        alpha: 0.7,
+                                      )
+                                    : Colors.grey[500],
+                              ),
+                        ),
+                        if (track.bitrateKbps != null) ...[
+                          Text(
+                            ' · ${track.bitrateKbps} kbps',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: isCurrentTrack
+                                      ? colorScheme.onPrimaryContainer
+                                            .withValues(alpha: 0.7)
+                                      : Colors.grey[500],
+                                ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -114,15 +132,67 @@ class AudioFileTile extends StatelessWidget {
     );
   }
 
-  /// Format the filename for display (remove extension, replace underscores)
-  String _formatFileName(String name) {
-    // Remove file extension
-    final lastDot = name.lastIndexOf('.');
-    if (lastDot > 0) {
-      name = name.substring(0, lastDot);
-    }
+  Widget _buildThumbnail(BuildContext context, ColorScheme colorScheme) {
+    return FutureBuilder<String?>(
+      future: _getThumbnailPath(),
+      builder: (context, snapshot) {
+        final thumbnailPath = snapshot.data;
 
-    // Replace underscores with spaces for readability
-    return name.replaceAll('_', ' ');
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Thumbnail image or placeholder
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: isCurrentTrack
+                    ? colorScheme.primary
+                    : colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: thumbnailPath != null
+                  ? Image.file(
+                      File(thumbnailPath),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return _buildPlaceholderIcon(colorScheme);
+                      },
+                    )
+                  : _buildPlaceholderIcon(colorScheme),
+            ),
+
+            // Play/pause overlay when current track
+            if (isCurrentTrack)
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPlaceholderIcon(ColorScheme colorScheme) {
+    return Center(
+      child: Icon(
+        Icons.music_note,
+        color: isCurrentTrack
+            ? colorScheme.onPrimary
+            : colorScheme.onSurfaceVariant,
+        size: 28,
+      ),
+    );
   }
 }

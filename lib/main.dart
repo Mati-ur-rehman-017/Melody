@@ -2,14 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
 
-import 'pages/download_page.dart';
 import 'pages/library_page.dart';
+import 'pages/search_page.dart';
+import 'services/database_service.dart';
 import 'widgets/mini_player.dart';
 
-void main() {
+void main() async {
+  // Ensure Flutter bindings are initialized before async operations
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Initialize MediaKit for Linux/Windows desktop audio support
   JustAudioMediaKit.ensureInitialized();
+
+  // Initialize logging
   _setupLogging();
+
+  // Initialize database
+  await DatabaseService.instance.initialize();
+
   runApp(const MelodyApp());
 }
 
@@ -69,7 +79,7 @@ class _MainShellState extends State<MainShell> {
           Expanded(
             child: IndexedStack(
               index: _currentIndex,
-              children: const [DownloadPage(), LibraryPage()],
+              children: const [SearchPage(), LibraryPage()],
             ),
           ),
 
@@ -86,9 +96,9 @@ class _MainShellState extends State<MainShell> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.download_outlined),
-            selectedIcon: Icon(Icons.download),
-            label: 'Download',
+            icon: Icon(Icons.search_outlined),
+            selectedIcon: Icon(Icons.search),
+            label: 'Search',
           ),
           NavigationDestination(
             icon: Icon(Icons.library_music_outlined),

@@ -1,8 +1,11 @@
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+
+import '../models/track.dart';
+import 'database_service.dart';
 
 /// Logger instance for the download service
 final Logger _log = Logger('YouTubeDownloadService');
@@ -13,12 +16,14 @@ class VideoInfo {
   final String title;
   final String author;
   final Duration? duration;
+  final String? thumbnailUrl;
 
   const VideoInfo({
     required this.videoId,
     required this.title,
     required this.author,
     this.duration,
+    this.thumbnailUrl,
   });
 
   String get formattedDuration {
@@ -55,16 +60,16 @@ class DownloadProgress {
 /// Result of a download operation
 class DownloadResult {
   final bool success;
-  final String? filePath;
+  final Track? track;
   final String? errorMessage;
 
-  const DownloadResult.success(this.filePath)
+  const DownloadResult.success(this.track)
     : success = true,
       errorMessage = null;
 
   const DownloadResult.failure(this.errorMessage)
     : success = false,
-      filePath = null;
+      track = null;
 }
 
 /// Service for downloading audio from YouTube videos
@@ -81,16 +86,6 @@ class YouTubeDownloadService {
     [],
   ];
 
-  /// Get the downloads directory path
-  static Future<Directory> getDownloadsDirectory() async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final downloadsDir = Directory('${appDir.path}/downloads');
-    if (!await downloadsDir.exists()) {
-      await downloadsDir.create(recursive: true);
-    }
-    return downloadsDir;
-  }
-
   /// Initialize the YouTube client
   void _ensureClient() {
     _yt ??= YoutubeExplode();
@@ -100,6 +95,42 @@ class YouTubeDownloadService {
   void dispose() {
     _yt?.close();
     _yt = null;
+  }
+
+  /// Search YouTube for videos by keyword
+  ///
+  /// Appends " song" to the query internally to get music-focused results.
+  /// Returns a [VideoSearchList] that supports pagination via `.nextPage()`.
+  Future<VideoSearchList> searchVideos(String query) async {
+    _ensureClient();
+    final searchQuery = '$query song';
+    _log.info('Searching YouTube for: $searchQuery');
+
+    try {
+      final results = await _yt!.search.search(searchQuery);
+      _log.info('Found ${results.length} results');
+      return results;
+    } catch (e) {
+      _log.severe('Search failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Get autocomplete suggestions for a search query
+  ///
+  /// Returns a list of suggestion strings from YouTube.
+  Future<List<String>> getSearchSuggestions(String query) async {
+    _ensureClient();
+    _log.fine('Getting suggestions for: $query');
+
+    try {
+      final suggestions = await _yt!.search.getQuerySuggestions(query);
+      _log.fine('Got ${suggestions.length} suggestions');
+      return suggestions;
+    } catch (e) {
+      _log.warning('Failed to get suggestions: $e');
+      return [];
+    }
   }
 
   /// Extract video ID from various YouTube URL formats
@@ -149,6 +180,11 @@ class YouTubeDownloadService {
     return null;
   }
 
+  /// Check if a track is already downloaded
+  Future<bool> isAlreadyDownloaded(String videoId) async {
+    return DatabaseService.instance.trackExists(videoId);
+  }
+
   /// Fetch video information
   Future<VideoInfo> getVideoInfo(String videoId) async {
     _ensureClient();
@@ -158,11 +194,21 @@ class YouTubeDownloadService {
       final video = await _yt!.videos.get(videoId);
 
       _log.fine('Video metadata received: ${video.title}');
+
+      // Get thumbnail URL (highest quality available)
+      String? thumbnailUrl;
+      try {
+        thumbnailUrl = video.thumbnails.highResUrl;
+      } catch (_) {
+        thumbnailUrl = video.thumbnails.mediumResUrl;
+      }
+
       return VideoInfo(
         videoId: videoId,
         title: video.title,
         author: video.author,
         duration: video.duration,
+        thumbnailUrl: thumbnailUrl,
       );
     } catch (e) {
       _log.severe('Failed to fetch video metadata: $e');
@@ -187,6 +233,14 @@ class YouTubeDownloadService {
     _log.info('Starting audio download for: $videoId');
 
     try {
+      // Check if already downloaded
+      if (await isAlreadyDownloaded(videoId)) {
+        _log.info('Track already in library: $videoId');
+        return const DownloadResult.failure(
+          'This track is already in your library',
+        );
+      }
+
       // Get stream manifest
       final (manifest, clientName) = await _tryGetManifestWithClients(videoId);
       _log.fine('Got manifest via client(s): $clientName');
@@ -207,16 +261,20 @@ class YouTubeDownloadService {
         'Selected stream: ${streamInfo.container.name} @ ${streamInfo.bitrate.kiloBitsPerSecond.toStringAsFixed(0)} kbps',
       );
 
-      // Get video title for filename
+      // Get video metadata
       final video = await _yt!.videos.get(videoId);
-      final sanitizedTitle = _sanitizeFilename(video.title);
 
-      // Get downloads directory
-      final downloadsDir = await getDownloadsDirectory();
+      // Get thumbnail URL
+      String? thumbnailUrl;
+      try {
+        thumbnailUrl = video.thumbnails.highResUrl;
+      } catch (_) {
+        thumbnailUrl = video.thumbnails.mediumResUrl;
+      }
 
-      // Prepare file path
-      final filePath =
-          '${downloadsDir.path}/$sanitizedTitle.${streamInfo.container.name}';
+      // Prepare file path: audio/<videoId>.<container>
+      final fileName = '$videoId.${streamInfo.container.name}';
+      final filePath = await DatabaseService.getAudioFilePath(fileName);
       final file = File(filePath);
       _log.info('Output file: $filePath');
 
@@ -243,8 +301,29 @@ class YouTubeDownloadService {
         await fileStream.flush();
         await fileStream.close();
 
-        _log.info('Download complete: $filePath');
-        return DownloadResult.success(filePath);
+        // Download thumbnail image
+        final thumbnailPath = await _downloadThumbnail(videoId, thumbnailUrl);
+
+        // Create track object
+        final track = Track(
+          id: videoId,
+          title: video.title,
+          author: video.author,
+          durationMs: video.duration?.inMilliseconds,
+          filePath: 'audio/$fileName', // Relative path
+          fileSize: totalBytes,
+          bitrateKbps: streamInfo.bitrate.kiloBitsPerSecond.round(),
+          container: streamInfo.container.name,
+          downloadedAt: DateTime.now(),
+          thumbnailUrl: thumbnailUrl,
+          thumbnailPath: thumbnailPath,
+        );
+
+        // Insert into database
+        await DatabaseService.instance.insertTrack(track);
+
+        _log.info('Download complete: ${track.title}');
+        return DownloadResult.success(track);
       } catch (e) {
         await fileStream.close();
         // Clean up partial file
@@ -321,20 +400,54 @@ class YouTubeDownloadService {
     return regex.hasMatch(id);
   }
 
-  /// Sanitize filename by removing invalid characters
-  String _sanitizeFilename(String filename) {
-    var sanitized = filename
-        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
-        .replaceAll(RegExp(r'\s+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .trim();
-
-    if (sanitized.length > 200) {
-      sanitized = sanitized.substring(0, 200);
+  /// Download thumbnail image from URL
+  ///
+  /// Returns the relative path to the saved thumbnail (e.g., "thumbnails/videoId.jpg")
+  /// or null if download fails.
+  Future<String?> _downloadThumbnail(
+    String videoId,
+    String? thumbnailUrl,
+  ) async {
+    if (thumbnailUrl == null || thumbnailUrl.isEmpty) {
+      _log.warning('No thumbnail URL provided for $videoId');
+      return null;
     }
 
-    sanitized = sanitized.replaceAll(RegExp(r'^_+|_+$'), '');
-    return sanitized;
+    try {
+      _log.fine('Downloading thumbnail from: $thumbnailUrl');
+
+      final response = await http.get(Uri.parse(thumbnailUrl));
+
+      if (response.statusCode != 200) {
+        _log.warning(
+          'Failed to download thumbnail: HTTP ${response.statusCode}',
+        );
+        return null;
+      }
+
+      // Determine file extension from content type or URL
+      String extension = 'jpg';
+      final contentType = response.headers['content-type'];
+      if (contentType != null) {
+        if (contentType.contains('png')) {
+          extension = 'png';
+        } else if (contentType.contains('webp')) {
+          extension = 'webp';
+        }
+      }
+
+      final fileName = '$videoId.$extension';
+      final filePath = await DatabaseService.getThumbnailFilePath(fileName);
+      final file = File(filePath);
+
+      await file.writeAsBytes(response.bodyBytes);
+      _log.info('Thumbnail saved: $filePath');
+
+      return 'thumbnails/$fileName';
+    } catch (e) {
+      _log.warning('Failed to download thumbnail: $e');
+      return null;
+    }
   }
 }
 

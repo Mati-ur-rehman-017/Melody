@@ -1,24 +1,17 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:logging/logging.dart';
 
+import '../models/track.dart';
 import '../services/audio_player_service.dart';
-import '../services/youtube_download_service.dart';
+import '../services/database_service.dart';
 import '../widgets/audio_file_tile.dart';
 
 /// Logger instance for the library page
 final Logger _log = Logger('LibraryPage');
-
-/// Information about a downloaded audio file
-class AudioFile {
-  final String path;
-  final String name;
-  final Duration? duration;
-
-  const AudioFile({required this.path, required this.name, this.duration});
-}
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -29,19 +22,33 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   final _audioService = AudioPlayerService.instance;
+  final _dbService = DatabaseService.instance;
 
-  List<AudioFile> _files = [];
+  List<Track> _tracks = [];
   bool _isLoading = true;
   String? _errorMessage;
+
+  StreamSubscription<void>? _tracksChangedSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadFiles();
+    _loadTracks();
+
+    // Subscribe to track changes to auto-refresh when downloads complete
+    _tracksChangedSubscription = _dbService.tracksChanged.listen((_) {
+      _loadTracks();
+    });
   }
 
-  Future<void> _loadFiles() async {
-    _log.info('Starting to load files...');
+  @override
+  void dispose() {
+    _tracksChangedSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadTracks() async {
+    _log.info('Loading tracks from database...');
 
     setState(() {
       _isLoading = true;
@@ -49,115 +56,65 @@ class _LibraryPageState extends State<LibraryPage> {
     });
 
     try {
-      _log.fine('Getting downloads directory...');
-      final downloadsDir = await YouTubeDownloadService.getDownloadsDirectory();
-      _log.fine('Downloads directory: ${downloadsDir.path}');
+      final tracks = await _dbService.getAllTracks();
+      _log.info('Loaded ${tracks.length} tracks from database');
 
-      final files = <AudioFile>[];
-
-      if (await downloadsDir.exists()) {
-        _log.fine('Directory exists, listing files...');
-        final entities = downloadsDir.listSync();
-        _log.info('Found ${entities.length} entities in downloads directory');
-
-        // PHASE 1: Quickly collect all files WITHOUT loading durations
-        for (final entity in entities) {
-          if (entity is File) {
-            final path = entity.path;
-            final name = path.split('/').last;
-            _log.fine('Found file: $name');
-
-            // Add file with null duration initially
-            files.add(AudioFile(path: path, name: name, duration: null));
-          }
-        }
-      } else {
-        _log.warning('Downloads directory does not exist');
-      }
-
-      // Sort by name
-      files.sort((a, b) => a.name.compareTo(b.name));
-      _log.info('Phase 1 complete: ${files.length} files ready to display');
-
-      // Show the list immediately (Phase 1 complete)
       setState(() {
-        _files = files;
+        _tracks = tracks;
         _isLoading = false;
       });
-
-      // PHASE 2: Load durations in background and update progressively
-      if (files.isNotEmpty) {
-        _log.info('Phase 2: Loading durations for ${files.length} files...');
-        _loadDurationsInBackground();
-      }
     } catch (e, stackTrace) {
-      _log.severe('Failed to load files: $e');
+      _log.severe('Failed to load tracks: $e');
       _log.severe('Stack trace: $stackTrace');
       setState(() {
-        _errorMessage = 'Failed to load files: $e';
+        _errorMessage = 'Failed to load library: $e';
         _isLoading = false;
       });
     }
   }
 
-  /// Load durations for all files in the background
-  /// Updates the UI progressively as each duration is fetched
-  Future<void> _loadDurationsInBackground() async {
-    for (var i = 0; i < _files.length; i++) {
-      final file = _files[i];
-
-      // Skip if duration already loaded
-      if (file.duration != null) continue;
-
-      _log.fine('Loading duration ${i + 1}/${_files.length}: ${file.name}');
-
-      try {
-        final duration = await _audioService.getFileDuration(file.path);
-
-        // Update the file with its duration
-        if (mounted) {
-          setState(() {
-            _files[i] = AudioFile(
-              path: file.path,
-              name: file.name,
-              duration: duration,
-            );
-          });
-          _log.fine('Duration loaded for ${file.name}: $duration');
-        }
-      } catch (e) {
-        _log.warning('Failed to load duration for ${file.name}: $e');
-        // Continue to next file even if this one fails
-      }
-    }
-    _log.info('Phase 2 complete: All durations loaded');
+  /// Get the full file path for a track
+  Future<String> _getFullPath(Track track) async {
+    return DatabaseService.getAudioFilePath(
+      track.filePath.replaceFirst('audio/', ''),
+    );
   }
 
-  Future<void> _playFile(AudioFile file) async {
+  /// Get the full file path for a track's thumbnail
+  Future<String?> _getThumbnailFullPath(Track track) async {
+    if (track.thumbnailPath == null) return null;
+    return DatabaseService.getThumbnailFilePath(
+      track.thumbnailPath!.replaceFirst('thumbnails/', ''),
+    );
+  }
+
+  Future<void> _playTrack(Track track) async {
     try {
-      if (_audioService.isCurrentTrack(file.path)) {
+      final fullPath = await _getFullPath(track);
+
+      if (_audioService.isCurrentTrack(fullPath)) {
         // Toggle play/pause if same track
         await _audioService.togglePlayPause();
       } else {
         // Play new track
-        await _audioService.play(file.path);
+        await _audioService.play(fullPath);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error playing file: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error playing track: $e')));
       }
     }
   }
 
-  Future<void> _deleteFile(AudioFile file) async {
+  Future<void> _deleteTrack(Track track) async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete File'),
-        content: Text('Are you sure you want to delete "${file.name}"?'),
+        title: const Text('Delete Track'),
+        content: Text('Are you sure you want to delete "${track.title}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -175,32 +132,55 @@ class _LibraryPageState extends State<LibraryPage> {
     if (confirmed != true) return;
 
     try {
-      // Stop playback if this file is currently playing
-      if (_audioService.isCurrentTrack(file.path)) {
+      final fullPath = await _getFullPath(track);
+
+      // Stop playback if this track is currently playing
+      if (_audioService.isCurrentTrack(fullPath)) {
         await _audioService.stop();
       }
 
-      // Delete the file
-      final fileToDelete = File(file.path);
+      // Delete the audio file
+      final fileToDelete = File(fullPath);
       if (await fileToDelete.exists()) {
         await fileToDelete.delete();
+        _log.info('Deleted audio file: $fullPath');
       }
 
-      // Reload the file list
-      await _loadFiles();
+      // Delete the thumbnail file if it exists
+      final thumbnailPath = await _getThumbnailFullPath(track);
+      if (thumbnailPath != null) {
+        final thumbnailFile = File(thumbnailPath);
+        if (await thumbnailFile.exists()) {
+          await thumbnailFile.delete();
+          _log.info('Deleted thumbnail: $thumbnailPath');
+        }
+      }
+
+      // Remove from database
+      await _dbService.deleteTrack(track.id);
+
+      // Reload the track list
+      await _loadTracks();
 
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('File deleted')));
+        ).showSnackBar(const SnackBar(content: Text('Track deleted')));
       }
     } catch (e) {
+      _log.severe('Error deleting track: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error deleting file: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error deleting track: $e')));
       }
     }
+  }
+
+  /// Check if a track is currently loaded (need to resolve full path)
+  Future<bool> _isCurrentTrack(Track track) async {
+    final fullPath = await _getFullPath(track);
+    return _audioService.isCurrentTrack(fullPath);
   }
 
   @override
@@ -233,7 +213,7 @@ class _LibraryPageState extends State<LibraryPage> {
             Text(_errorMessage!, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _loadFiles,
+              onPressed: _loadTracks,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
@@ -242,7 +222,7 @@ class _LibraryPageState extends State<LibraryPage> {
       );
     }
 
-    if (_files.isEmpty) {
+    if (_tracks.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -268,23 +248,30 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadFiles,
+      onRefresh: _loadTracks,
       child: StreamBuilder<PlayerState>(
         stream: _audioService.playerStateStream,
         builder: (context, snapshot) {
           return ListView.builder(
-            itemCount: _files.length,
+            itemCount: _tracks.length,
             itemBuilder: (context, index) {
-              final file = _files[index];
-              final isCurrentTrack = _audioService.isCurrentTrack(file.path);
-              final isPlaying = isCurrentTrack && _audioService.isPlaying;
+              final track = _tracks[index];
 
-              return AudioFileTile(
-                file: file,
-                isPlaying: isPlaying,
-                isCurrentTrack: isCurrentTrack,
-                onTap: () => _playFile(file),
-                onDelete: () => _deleteFile(file),
+              // Use FutureBuilder to resolve full path for comparison
+              return FutureBuilder<bool>(
+                future: _isCurrentTrack(track),
+                builder: (context, isCurrentSnapshot) {
+                  final isCurrentTrack = isCurrentSnapshot.data ?? false;
+                  final isPlaying = isCurrentTrack && _audioService.isPlaying;
+
+                  return AudioFileTile(
+                    track: track,
+                    isPlaying: isPlaying,
+                    isCurrentTrack: isCurrentTrack,
+                    onTap: () => _playTrack(track),
+                    onDelete: () => _deleteTrack(track),
+                  );
+                },
               );
             },
           );

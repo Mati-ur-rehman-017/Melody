@@ -6,13 +6,14 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../models/playlist.dart';
 import '../models/track.dart';
 
 /// Logger instance for the database service
 final Logger _log = Logger('DatabaseService');
 
 /// Database version for migrations
-const int _databaseVersion = 2;
+const int _databaseVersion = 3;
 
 /// Database filename
 const String _databaseName = 'melody.db';
@@ -111,6 +112,43 @@ class DatabaseService {
       await db.execute('ALTER TABLE tracks ADD COLUMN thumbnail_path TEXT');
       _log.info('Migration to v2 complete');
     }
+
+    // Migration from v2 to v3: add playlists and playlist_tracks tables
+    if (oldVersion < 3) {
+      _log.info('Creating playlist tables...');
+      await _createPlaylistTables(db);
+      _log.info('Migration to v3 complete');
+    }
+  }
+
+  /// Create playlist tables
+  Future<void> _createPlaylistTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE playlists (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE playlist_tracks (
+        playlist_id TEXT NOT NULL,
+        track_id TEXT NOT NULL,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (playlist_id, track_id),
+        FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+        FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_playlist_tracks_playlist_id ON playlist_tracks(playlist_id)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_playlist_tracks_track_id ON playlist_tracks(track_id)
+    ''');
   }
 
   /// Ensure the database schema is up to date
@@ -127,6 +165,16 @@ class DatabaseService {
         'ALTER TABLE tracks ADD COLUMN thumbnail_path TEXT',
       );
       _log.info('Added missing thumbnail_path column');
+    }
+
+    // Check if playlists table exists
+    final tables = await _database!.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='playlists'",
+    );
+    if (tables.isEmpty) {
+      _log.warning('Playlist tables missing, creating them now...');
+      await _createPlaylistTables(_database!);
+      _log.info('Created missing playlist tables');
     }
   }
 
@@ -289,5 +337,236 @@ class DatabaseService {
   static Future<String> getThumbnailFilePath(String fileName) async {
     final thumbDir = await getThumbnailsDirectory();
     return p.join(thumbDir.path, fileName);
+  }
+
+  // ==================== PLAYLIST METHODS ====================
+
+  /// Create a new playlist
+  Future<Playlist> createPlaylist(String name) async {
+    _ensureInitialized();
+    _log.fine('Creating playlist: $name');
+
+    final playlist = Playlist(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name,
+      createdAt: DateTime.now(),
+    );
+
+    await _database!.insert(
+      'playlists',
+      playlist.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+
+    _log.info('Playlist created: ${playlist.name}');
+    return playlist;
+  }
+
+  /// Get all playlists with their track counts
+  Future<List<Playlist>> getAllPlaylists() async {
+    _ensureInitialized();
+    _log.fine('Getting all playlists');
+
+    final maps = await _database!.rawQuery('''
+      SELECT 
+        p.id,
+        p.name,
+        p.created_at,
+        COUNT(pt.track_id) as track_count
+      FROM playlists p
+      LEFT JOIN playlist_tracks pt ON p.id = pt.playlist_id
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
+    ''');
+
+    final playlists = maps.map((map) => Playlist.fromMap(map)).toList();
+    _log.fine('Retrieved ${playlists.length} playlists');
+    return playlists;
+  }
+
+  /// Get a playlist by ID
+  Future<Playlist?> getPlaylistById(String id) async {
+    _ensureInitialized();
+    _log.fine('Getting playlist by ID: $id');
+
+    final maps = await _database!.rawQuery(
+      '''
+      SELECT 
+        p.id,
+        p.name,
+        p.created_at,
+        COUNT(pt.track_id) as track_count
+      FROM playlists p
+      LEFT JOIN playlist_tracks pt ON p.id = pt.playlist_id
+      WHERE p.id = ?
+      GROUP BY p.id
+    ''',
+      [id],
+    );
+
+    if (maps.isEmpty) {
+      return null;
+    }
+
+    return Playlist.fromMap(maps.first);
+  }
+
+  /// Delete a playlist
+  Future<void> deletePlaylist(String id) async {
+    _ensureInitialized();
+    _log.fine('Deleting playlist: $id');
+
+    await _database!.delete('playlists', where: 'id = ?', whereArgs: [id]);
+
+    _log.info('Playlist deleted: $id');
+  }
+
+  /// Add a track to a playlist
+  Future<void> addTrackToPlaylist(String playlistId, String trackId) async {
+    _ensureInitialized();
+    _log.fine('Adding track $trackId to playlist $playlistId');
+
+    await _database!.insert(
+      'playlist_tracks',
+      {
+        'playlist_id': playlistId,
+        'track_id': trackId,
+        'added_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore, // Ignore if already exists
+    );
+
+    _log.info('Track added to playlist');
+  }
+
+  /// Remove a track from a playlist
+  Future<void> removeTrackFromPlaylist(
+    String playlistId,
+    String trackId,
+  ) async {
+    _ensureInitialized();
+    _log.fine('Removing track $trackId from playlist $playlistId');
+
+    await _database!.delete(
+      'playlist_tracks',
+      where: 'playlist_id = ? AND track_id = ?',
+      whereArgs: [playlistId, trackId],
+    );
+
+    _log.info('Track removed from playlist');
+  }
+
+  /// Get all tracks in a playlist
+  Future<List<Track>> getPlaylistTracks(String playlistId) async {
+    _ensureInitialized();
+    _log.fine('Getting tracks for playlist: $playlistId');
+
+    final maps = await _database!.rawQuery(
+      '''
+      SELECT 
+        t.id,
+        t.title,
+        t.author,
+        t.duration_ms,
+        t.file_path,
+        t.file_size,
+        t.bitrate_kbps,
+        t.container,
+        t.downloaded_at,
+        t.thumbnail_url,
+        t.thumbnail_path
+      FROM tracks t
+      INNER JOIN playlist_tracks pt ON t.id = pt.track_id
+      WHERE pt.playlist_id = ?
+      ORDER BY pt.added_at ASC
+    ''',
+      [playlistId],
+    );
+
+    final tracks = maps.map((map) => Track.fromMap(map)).toList();
+    _log.fine('Retrieved ${tracks.length} tracks for playlist');
+    return tracks;
+  }
+
+  /// Check if a track is in a playlist
+  Future<bool> isTrackInPlaylist(String playlistId, String trackId) async {
+    _ensureInitialized();
+    _log.fine('Checking if track $trackId is in playlist $playlistId');
+
+    final result = await _database!.query(
+      'playlist_tracks',
+      columns: ['playlist_id'],
+      where: 'playlist_id = ? AND track_id = ?',
+      whereArgs: [playlistId, trackId],
+      limit: 1,
+    );
+
+    return result.isNotEmpty;
+  }
+
+  /// Get all playlists that contain a specific track
+  Future<List<String>> getPlaylistsForTrack(String trackId) async {
+    _ensureInitialized();
+    _log.fine('Getting playlists for track: $trackId');
+
+    final maps = await _database!.query(
+      'playlist_tracks',
+      columns: ['playlist_id'],
+      where: 'track_id = ?',
+      whereArgs: [trackId],
+    );
+
+    return maps.map((map) => map['playlist_id'] as String).toList();
+  }
+
+  /// Search tracks by title or author
+  Future<List<Track>> searchTracks(String query) async {
+    _ensureInitialized();
+    _log.fine('Searching tracks with query: $query');
+
+    final searchPattern = '%$query%';
+    final maps = await _database!.query(
+      'tracks',
+      where: 'title LIKE ? OR author LIKE ?',
+      whereArgs: [searchPattern, searchPattern],
+      orderBy: 'title ASC',
+    );
+
+    final tracks = maps.map((map) => Track.fromMap(map)).toList();
+    _log.fine('Found ${tracks.length} tracks matching query');
+    return tracks;
+  }
+
+  /// Get all tracks that are NOT in a specific playlist
+  Future<List<Track>> getTracksNotInPlaylist(String playlistId) async {
+    _ensureInitialized();
+    _log.fine('Getting tracks not in playlist: $playlistId');
+
+    final maps = await _database!.rawQuery(
+      '''
+      SELECT 
+        t.id,
+        t.title,
+        t.author,
+        t.duration_ms,
+        t.file_path,
+        t.file_size,
+        t.bitrate_kbps,
+        t.container,
+        t.downloaded_at,
+        t.thumbnail_url,
+        t.thumbnail_path
+      FROM tracks t
+      WHERE t.id NOT IN (
+        SELECT track_id FROM playlist_tracks WHERE playlist_id = ?
+      )
+      ORDER BY t.title ASC
+    ''',
+      [playlistId],
+    );
+
+    final tracks = maps.map((map) => Track.fromMap(map)).toList();
+    _log.fine('Retrieved ${tracks.length} tracks not in playlist');
+    return tracks;
   }
 }

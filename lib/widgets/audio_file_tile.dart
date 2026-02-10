@@ -11,6 +11,7 @@ class AudioFileTile extends StatelessWidget {
   final bool isCurrentTrack;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final VoidCallback? onAddToPlaylist;
 
   const AudioFileTile({
     super.key,
@@ -19,6 +20,7 @@ class AudioFileTile extends StatelessWidget {
     required this.isCurrentTrack,
     required this.onTap,
     required this.onDelete,
+    this.onAddToPlaylist,
   });
 
   /// Get the full path to the thumbnail file
@@ -114,16 +116,47 @@ class AudioFileTile extends StatelessWidget {
                 ),
               ),
 
-              // Delete button
-              IconButton(
+              // More options menu
+              PopupMenuButton<String>(
                 icon: Icon(
-                  Icons.delete_outline,
+                  Icons.more_vert,
                   color: isCurrentTrack
                       ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
                       : Colors.grey[600],
                 ),
-                onPressed: onDelete,
-                tooltip: 'Delete',
+                onSelected: (value) {
+                  if (value == 'add_to_playlist' && onAddToPlaylist != null) {
+                    onAddToPlaylist!();
+                  } else if (value == 'delete') {
+                    onDelete();
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (onAddToPlaylist != null)
+                    const PopupMenuItem(
+                      value: 'add_to_playlist',
+                      child: Row(
+                        children: [
+                          Icon(Icons.playlist_add),
+                          SizedBox(width: 8),
+                          Text('Add to Playlist'),
+                        ],
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline, color: Colors.red[400]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Delete',
+                          style: TextStyle(color: Colors.red[400]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

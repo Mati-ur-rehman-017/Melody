@@ -17,22 +17,20 @@ class Category {
 class RecommendedTrack {
   final String id;
   final String title;
-  final String artist;
+  final String subtitle;
   final String duration;
   final String category;
   final String imageAsset;
   final int backgroundColor;
-  final int accentColor;
 
   const RecommendedTrack({
     required this.id,
     required this.title,
-    required this.artist,
+    required this.subtitle,
     required this.duration,
     required this.category,
     required this.imageAsset,
     required this.backgroundColor,
-    required this.accentColor,
   });
 }
 
@@ -112,47 +110,43 @@ class AppConstants {
     ),
   ];
 
-  // Recommended tracks data
+  // Recommended tracks data - Modern music playlists
   static const List<RecommendedTrack> recommendedTracks = [
     RecommendedTrack(
       id: 'r1',
-      title: 'Connecting Beyond Words',
-      artist: '30 min • English',
-      duration: '30:00',
-      category: 'TOUCHING',
-      imageAsset: 'assets/images/track_1.png',
-      backgroundColor: 0xFFF2E8D5,
-      accentColor: 0xFF1A2E35, // Secondary
+      title: 'Liked Songs',
+      subtitle: '248 tracks',
+      duration: '12:45',
+      category: 'Pop',
+      imageAsset: 'assets/images/album_1.png',
+      backgroundColor: 0xFF2C1810, // Dark brown
     ),
     RecommendedTrack(
       id: 'r2',
-      title: 'Unlocking Empathy',
-      artist: '25 min • English',
-      duration: '25:00',
-      category: 'LISTENING',
-      imageAsset: 'assets/images/track_2.png',
-      backgroundColor: 0xFFE5EDF0,
-      accentColor: 0xFFE67E5F, // Primary
+      title: 'Gym & High Energy',
+      subtitle: '42 tracks',
+      duration: '2:30',
+      category: 'Rock',
+      imageAsset: 'assets/images/album_2.png',
+      backgroundColor: 0xFF1A1A1A, // Dark gray
     ),
     RecommendedTrack(
       id: 'r3',
-      title: 'Vocal Mastery',
-      artist: '45 min • English',
-      duration: '45:00',
-      category: 'SPEAKING',
-      imageAsset: 'assets/images/track_3.png',
-      backgroundColor: 0xFFFDE4E4,
-      accentColor: 0xFFF4C430, // Accent
+      title: 'Midnight Jazz',
+      subtitle: '86 tracks',
+      duration: '5:20',
+      category: 'Jazz',
+      imageAsset: 'assets/images/album_3.png',
+      backgroundColor: 0xFF0F1419, // Dark blue-black
     ),
     RecommendedTrack(
       id: 'r4',
-      title: 'Morning Rituals',
-      artist: '12 min • English',
-      duration: '12:00',
-      category: 'MINDSET',
-      imageAsset: 'assets/images/track_4.png',
-      backgroundColor: 0xFFE9F4F0,
-      accentColor: 0xFF1A2E35, // Secondary
+      title: 'Deep Focus',
+      subtitle: '120 tracks',
+      duration: '8:15',
+      category: 'Electronic',
+      imageAsset: 'assets/images/album_4.png',
+      backgroundColor: 0xFF151515, // Almost black
     ),
   ];
 

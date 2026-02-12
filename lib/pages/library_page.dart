@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -354,16 +355,28 @@ class _LibraryPageState extends State<LibraryPage>
               ],
             ),
 
-            // FAB
-            Positioned(
-              right: 24,
-              bottom: 110,
-              child: FloatingActionButton(
-                onPressed: _activeTab == 'songs' ? null : _createPlaylist,
-                backgroundColor: AppColors.primary,
-                elevation: 4,
-                child: const Icon(Icons.add, size: 32),
-              ),
+            // FAB - positioned dynamically based on mini player visibility
+            StreamBuilder<PlayerState>(
+              stream: _audioService.playerStateStream,
+              builder: (context, snapshot) {
+                final playerState = snapshot.data;
+                final isPlayerVisible =
+                    playerState?.processingState != ProcessingState.idle &&
+                    _audioService.currentTrack != null;
+
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  right: 24,
+                  bottom: isPlayerVisible ? 150 : 90,
+                  child: FloatingActionButton(
+                    onPressed: _activeTab == 'songs' ? null : _createPlaylist,
+                    backgroundColor: AppColors.primary,
+                    elevation: 4,
+                    child: const Icon(Icons.add, size: 32),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -687,89 +700,162 @@ class _LibraryPageState extends State<LibraryPage>
         child: InkWell(
           borderRadius: AppRadius.large,
           onTap: () => _playTrack(track),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                // Album art
+          child: Row(
+            children: [
+              // Left accent bar for currently playing track
+              if (isCurrentTrack)
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: 4,
+                  height: 88,
                   decoration: BoxDecoration(
-                    borderRadius: AppRadius.medium,
-                    color: AppColors.secondary.withOpacity(0.1),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: AppRadius.medium,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        const Icon(
-                          Icons.music_note,
-                          color: AppColors.secondary,
-                          size: 32,
-                        ),
-                        // Play overlay
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.1),
-                            borderRadius: AppRadius.medium,
-                          ),
-                          child: Center(
-                            child: Icon(
-                              isPlaying ? Icons.pause : Icons.play_arrow,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                        ),
-                      ],
+                    color: AppColors.primary,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      bottomLeft: Radius.circular(24),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-
-                // Track info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
                     children: [
-                      Text(
-                        track.title,
-                        style: AppTypography.labelLarge.copyWith(
-                          color: isCurrentTrack
-                              ? AppColors.primary
-                              : theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      // Album art with thumbnail
+                      FutureBuilder<String?>(
+                        future: _getThumbnailFullPath(track),
+                        builder: (context, snapshot) {
+                          final thumbnailPath = snapshot.data;
+
+                          return Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              borderRadius: AppRadius.medium,
+                              color: AppColors.secondary.withOpacity(0.1),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: AppRadius.medium,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // Thumbnail image or placeholder
+                                  thumbnailPath != null
+                                      ? Image.file(
+                                          File(thumbnailPath),
+                                          fit: BoxFit.cover,
+                                          width: 64,
+                                          height: 64,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return const Icon(
+                                                  Icons.music_note,
+                                                  color: AppColors.secondary,
+                                                  size: 32,
+                                                );
+                                              },
+                                        )
+                                      : const Icon(
+                                          Icons.music_note,
+                                          color: AppColors.secondary,
+                                          size: 32,
+                                        ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${track.author} • ${track.formattedDuration}',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      const SizedBox(width: 16),
+
+                      // Track info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    track.title,
+                                    style: AppTypography.labelLarge.copyWith(
+                                      color: isCurrentTrack
+                                          ? AppColors.primary
+                                          : theme.colorScheme.onSurface,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                // Sound wave animation for playing track
+                                if (isPlaying) ...[
+                                  const SizedBox(width: 8),
+                                  const _AudioVisualizer(),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${track.author} • ${track.formattedDuration}',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(
+                                  0.7,
+                                ),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(width: 8),
+                      // More options
+                      PopupMenuButton<String>(
+                        icon: Icon(
+                          Icons.more_vert,
+                          color: theme.colorScheme.onSurface.withOpacity(0.3),
+                        ),
+                        onSelected: (value) {
+                          if (value == 'add_to_playlist') {
+                            _showAddToPlaylistDialog(track);
+                          } else if (value == 'delete') {
+                            _deleteTrack(track);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'add_to_playlist',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.playlist_add,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                                const SizedBox(width: 8),
+                                Text('Add to Playlist'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, color: Colors.red),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-
-                // More options
-                IconButton(
-                  icon: Icon(
-                    track.id == 'l2' ? Icons.favorite : Icons.more_vert,
-                    color: track.id == 'l2'
-                        ? AppColors.primary
-                        : theme.colorScheme.onSurface.withOpacity(0.3),
-                  ),
-                  onPressed: () {},
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1003,6 +1089,72 @@ class _LibraryPageState extends State<LibraryPage>
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Audio visualizer widget with animated bars for currently playing track
+class _AudioVisualizer extends StatefulWidget {
+  const _AudioVisualizer();
+
+  @override
+  State<_AudioVisualizer> createState() => _AudioVisualizerState();
+}
+
+class _AudioVisualizerState extends State<_AudioVisualizer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildBar(0.3, 0.7),
+            const SizedBox(width: 2),
+            _buildBar(0.5, 0.9),
+            const SizedBox(width: 2),
+            _buildBar(0.4, 0.8),
+            const SizedBox(width: 2),
+            _buildBar(0.6, 1.0),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBar(double minHeight, double maxHeight) {
+    final animationValue = _controller.value;
+    final height =
+        minHeight +
+        (maxHeight - minHeight) *
+            (0.5 + 0.5 * sin(animationValue * 2 * pi * 2 + minHeight * 10));
+
+    return Container(
+      width: 3,
+      height: 16 * height,
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(1.5),
       ),
     );
   }

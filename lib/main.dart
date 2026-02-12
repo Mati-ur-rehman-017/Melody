@@ -108,8 +108,16 @@ class _MainShellState extends State<MainShell> {
             child: _buildFloatingNavigation(),
           ),
 
-          // Theme toggle button
-          Positioned(top: 16, right: 16, child: _buildThemeToggle()),
+          // Theme toggle button - aligned with header
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16, right: 16),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: _buildThemeToggle(),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -539,7 +539,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       children: [
         // Section header
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -547,17 +547,19 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 'Recommended',
                 style: AppTypography.heading2.copyWith(
                   color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               Icon(
                 Icons.more_horiz,
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                size: 24,
               ),
             ],
           ),
         ),
 
-        // 2-column grid
+        // 2-column grid with modern cards
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: GridView.builder(
@@ -565,14 +567,14 @@ class _DiscoverPageState extends State<DiscoverPage> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 0.75,
+              childAspectRatio: 0.85,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),
             itemCount: AppConstants.recommendedTracks.length,
             itemBuilder: (context, index) {
               final track = AppConstants.recommendedTracks[index];
-              return _buildRecommendedTrackCard(track);
+              return _buildModernTrackCard(track);
             },
           ),
         ),
@@ -580,116 +582,131 @@ class _DiscoverPageState extends State<DiscoverPage> {
     );
   }
 
-  /// Build recommended track card
-  Widget _buildRecommendedTrackCard(RecommendedTrack track) {
+  /// Build modern track card with Image 2 style
+  Widget _buildModernTrackCard(RecommendedTrack track) {
     final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: Color(track.backgroundColor),
-        borderRadius: AppRadius.large,
-        boxShadow: AppShadows.card,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Album art with vinyl center
-          Expanded(
-            flex: 3,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+
+    return GestureDetector(
+      onTap: () {
+        // Search for this playlist
+        _searchController.text = track.title;
+        _performLiveSearch(track.title);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: AppRadius.large,
+          boxShadow: AppShadows.card,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Album art with play button overlay
+            Expanded(
+              flex: 3,
               child: Stack(
-                alignment: Alignment.center,
                 children: [
                   // Album art background
                   Container(
+                    width: double.infinity,
                     decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      shape: BoxShape.circle,
-                      boxShadow: AppShadows.card,
+                      color: Color(track.backgroundColor),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
                     ),
-                    child: ClipOval(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
                       child: Container(
-                        color: AppColors.secondary.withOpacity(0.8),
-                        child: const Center(
+                        color: Color(track.backgroundColor),
+                        child: Center(
                           child: Icon(
                             Icons.music_note,
-                            color: Colors.white54,
-                            size: 40,
+                            color: Colors.white.withOpacity(0.3),
+                            size: 48,
                           ),
                         ),
                       ),
                     ),
                   ),
-                  // Vinyl center
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Color(track.backgroundColor),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Color(track.accentColor),
-                        width: 3,
+                  // Play button
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.secondary,
-                          shape: BoxShape.circle,
-                        ),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 24,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
 
-          // Track info
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Category label
-                  Text(
-                    track.category,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.primary,
-                      letterSpacing: 1,
+            // Track info
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Title
+                    Text(
+                      track.title,
+                      style: AppTypography.labelLarge.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Title
-                  Text(
-                    track.title,
-                    style: AppTypography.labelLarge.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(height: 6),
+                    // Subtitle (track count)
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.music_note,
+                          size: 12,
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          track.subtitle,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  // Artist/duration
-                  Text(
-                    track.artist,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

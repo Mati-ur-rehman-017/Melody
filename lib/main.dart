@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'pages/discover_page.dart';
 import 'pages/library_page.dart';
 import 'services/database_service.dart';
+import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/mini_player.dart';
 
@@ -44,15 +45,44 @@ class MelodyApp extends StatefulWidget {
 
 class _MelodyAppState extends State<MelodyApp> {
   bool _isDarkMode = false;
+  final ThemeService _themeService = ThemeService();
+  bool _isLoading = true;
 
-  void _toggleTheme() {
+  @override
+  void initState() {
+    super.initState();
+    _loadThemePreference();
+  }
+
+  /// Load saved theme preference from SharedPreferences
+  Future<void> _loadThemePreference() async {
+    final isDarkMode = await _themeService.loadThemePreference();
+    setState(() {
+      _isDarkMode = isDarkMode;
+      _isLoading = false;
+    });
+  }
+
+  /// Toggle theme and save preference
+  void _toggleTheme() async {
     setState(() {
       _isDarkMode = !_isDarkMode;
     });
+    await _themeService.saveThemePreference(_isDarkMode);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show loading indicator while theme preference is loading
+    if (_isLoading) {
+      return MaterialApp(
+        title: 'Melody',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
     return MaterialApp(
       title: 'Melody',
       debugShowCheckedModeBanner: false,

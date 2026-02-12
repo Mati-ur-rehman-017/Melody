@@ -5,10 +5,13 @@ import 'package:logging/logging.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../constants.dart';
+import '../models/trending_song.dart';
 import '../services/database_service.dart';
+import '../services/trending_service.dart';
 import '../services/youtube_download_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/search_result_tile.dart';
+import '../widgets/trending_section.dart';
 
 /// Logger instance for the search page
 final Logger _log = Logger('DiscoverPage');
@@ -24,7 +27,8 @@ class DiscoverPage extends StatefulWidget {
   State<DiscoverPage> createState() => _DiscoverPageState();
 }
 
-class _DiscoverPageState extends State<DiscoverPage> {
+class _DiscoverPageState extends State<DiscoverPage>
+    with AutomaticKeepAliveClientMixin {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   final _downloadService = YouTubeDownloadService();
@@ -51,11 +55,21 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   StreamSubscription<void>? _tracksChangedSubscription;
 
+  // Trending songs
+  final TrendingService _trendingService = TrendingService();
+  List<TrendingSong> _trendingSongs = [];
+  List<TrendingSong> _viralSongs = [];
+  bool _isLoadingTrending = true;
+  bool _trendingError = false;
+  bool _isOffline = false;
+  DateTime? _lastTrendingUpdate;
+
   @override
   void initState() {
     super.initState();
     _loadDownloadedIds();
     _scrollController.addListener(_onScroll);
+    _loadTrendingSongs();
 
     // Subscribe to track changes to update download indicators
     _tracksChangedSubscription = _dbService.tracksChanged.listen((_) {
@@ -69,8 +83,52 @@ class _DiscoverPageState extends State<DiscoverPage> {
     _searchController.dispose();
     _scrollController.dispose();
     _downloadService.dispose();
+    _trendingService.dispose();
     _tracksChangedSubscription?.cancel();
     super.dispose();
+  }
+
+  /// Load trending songs from service
+  Future<void> _loadTrendingSongs({bool forceRefresh = false}) async {
+    setState(() {
+      _isLoadingTrending = true;
+      _trendingError = false;
+      _isOffline = false;
+    });
+
+    try {
+      final data = await _trendingService.getTrendingSongs(
+        forceRefresh: forceRefresh,
+      );
+      final lastUpdate = await _trendingService.getLastUpdateTime();
+
+      setState(() {
+        _trendingSongs = data['trending']!;
+        _viralSongs = data['viral']!;
+        _isLoadingTrending = false;
+        _lastTrendingUpdate = lastUpdate;
+        _isOffline =
+            _trendingService.isCacheExpired() == false && lastUpdate != null;
+      });
+    } catch (e) {
+      _log.warning('Error loading trending songs: $e');
+      setState(() {
+        _isLoadingTrending = false;
+        _trendingError = true;
+      });
+    }
+  }
+
+  /// Handle pull to refresh
+  Future<void> _onRefresh() async {
+    await _loadTrendingSongs(forceRefresh: true);
+  }
+
+  /// Handle trending song tap
+  void _onTrendingSongTap(TrendingSong song) {
+    final searchQuery = '${song.title} ${song.artist}';
+    _searchController.text = searchQuery;
+    _performLiveSearch(searchQuery);
   }
 
   /// Load all downloaded track IDs from the database
@@ -284,7 +342,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -303,7 +365,10 @@ class _DiscoverPageState extends State<DiscoverPage> {
             Expanded(
               child: _searchResults != null || _isSearching
                   ? _buildSearchResults()
-                  : _buildDiscoverContent(),
+                  : RefreshIndicator(
+                      onRefresh: _onRefresh,
+                      child: _buildDiscoverContent(),
+                    ),
             ),
           ],
         ),
@@ -401,9 +466,10 @@ class _DiscoverPageState extends State<DiscoverPage> {
     );
   }
 
-  /// Build discover content (categories + recommended)
+  /// Build discover content (categories + trending)
   Widget _buildDiscoverContent() {
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,8 +477,33 @@ class _DiscoverPageState extends State<DiscoverPage> {
           // Categories section
           _buildCategoriesSection(),
 
-          // Recommended section
-          _buildRecommendedSection(),
+          // Trending Now section
+          TrendingSection(
+            title: 'Trending Now',
+            songs: _trendingSongs,
+            isLoading: _isLoadingTrending,
+            isError: _trendingError,
+            isOffline: _isOffline,
+            onRetry: _trendingError
+                ? () => _loadTrendingSongs(forceRefresh: true)
+                : null,
+            onSongTap: _onTrendingSongTap,
+            lastUpdated: _lastTrendingUpdate,
+          ),
+
+          // Viral Hits section
+          TrendingSection(
+            title: 'Viral Hits',
+            songs: _viralSongs,
+            isLoading: _isLoadingTrending,
+            isError: _trendingError,
+            isOffline: _isOffline,
+            onRetry: _trendingError
+                ? () => _loadTrendingSongs(forceRefresh: true)
+                : null,
+            onSongTap: _onTrendingSongTap,
+            lastUpdated: _lastTrendingUpdate,
+          ),
         ],
       ),
     );

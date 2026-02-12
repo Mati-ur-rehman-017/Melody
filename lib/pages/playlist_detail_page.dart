@@ -203,7 +203,8 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final trackCount = _currentPlaylist.trackCount ?? 0;
+    // Use actual tracks list length instead of stored trackCount to ensure accuracy
+    final trackCount = _tracks.length;
 
     return Scaffold(
       appBar: AppBar(

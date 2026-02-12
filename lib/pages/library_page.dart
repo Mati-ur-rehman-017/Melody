@@ -30,7 +30,7 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final _audioService = AudioPlayerService.instance;
   final _dbService = DatabaseService.instance;
 
@@ -127,8 +127,15 @@ class _LibraryPageState extends State<LibraryPage>
       final playlists = await _dbService.getAllPlaylists();
       _log.info('Loaded ${playlists.length} playlists from database');
 
+      // Verify track counts by loading actual tracks for each playlist
+      final verifiedPlaylists = <Playlist>[];
+      for (final playlist in playlists) {
+        final tracks = await _dbService.getPlaylistTracks(playlist.id);
+        verifiedPlaylists.add(playlist.copyWith(trackCount: tracks.length));
+      }
+
       setState(() {
-        _playlists = playlists;
+        _playlists = verifiedPlaylists;
         _isLoadingPlaylists = false;
       });
     } catch (e, stackTrace) {
@@ -328,7 +335,11 @@ class _LibraryPageState extends State<LibraryPage>
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 

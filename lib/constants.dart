@@ -213,4 +213,50 @@ class AppConstants {
       backgroundColor: 0xFFE5EDF0, // Blue tint
     ),
   ];
+
+  // Fallback trending songs for offline mode
+  static const List<Map<String, String>> fallbackTrendingSongs = [
+    {
+      'title': 'Cruel Summer',
+      'artist': 'Taylor Swift',
+      'searchQuery': 'Cruel Summer Taylor Swift',
+    },
+    {'title': 'Seven', 'artist': 'Jung Kook', 'searchQuery': 'Seven Jung Kook'},
+    {
+      'title': 'Vampire',
+      'artist': 'Olivia Rodrigo',
+      'searchQuery': 'Vampire Olivia Rodrigo',
+    },
+    {
+      'title': 'Paint The Town Red',
+      'artist': 'Doja Cat',
+      'searchQuery': 'Paint The Town Red Doja Cat',
+    },
+    {
+      'title': 'What Was I Made For',
+      'artist': 'Billie Eilish',
+      'searchQuery': 'What Was I Made For Billie Eilish',
+    },
+  ];
+
+  // Fallback viral songs for offline mode
+  static const List<Map<String, String>> fallbackViralSongs = [
+    {
+      'title': 'Last Night',
+      'artist': 'Morgan Wallen',
+      'searchQuery': 'Last Night Morgan Wallen',
+    },
+    {'title': 'Snooze', 'artist': 'SZA', 'searchQuery': 'Snooze SZA'},
+    {'title': 'Kill Bill', 'artist': 'SZA', 'searchQuery': 'Kill Bill SZA'},
+    {
+      'title': 'Anti-Hero',
+      'artist': 'Taylor Swift',
+      'searchQuery': 'Anti-Hero Taylor Swift',
+    },
+    {
+      'title': 'Flowers',
+      'artist': 'Miley Cyrus',
+      'searchQuery': 'Flowers Miley Cyrus',
+    },
+  ];
 }

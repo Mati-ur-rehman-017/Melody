@@ -111,16 +111,51 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  late PageController _pageController;
 
   final List<Widget> _pages = const [DiscoverPage(), LibraryPage()];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  /// Handle page change from swipe
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  /// Handle navigation tab tap
+  void _onNavTap(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // Main content
-          _pages[_currentIndex],
+          // Main content with PageView for swipe navigation
+          PageView(
+            controller: _pageController,
+            onPageChanged: _onPageChanged,
+            physics: const BouncingScrollPhysics(),
+            allowImplicitScrolling: true,
+            children: _pages,
+          ),
 
           // Mini player (shows when audio is playing)
           const Positioned(
@@ -170,7 +205,7 @@ class _MainShellState extends State<MainShell> {
               icon: Icons.explore,
               label: 'Explore',
               isSelected: _currentIndex == 0,
-              onTap: () => setState(() => _currentIndex = 0),
+              onTap: () => _onNavTap(0),
             ),
           ),
 
@@ -180,7 +215,7 @@ class _MainShellState extends State<MainShell> {
               icon: Icons.library_music,
               label: 'Library',
               isSelected: _currentIndex == 1,
-              onTap: () => setState(() => _currentIndex = 1),
+              onTap: () => _onNavTap(1),
             ),
           ),
         ],

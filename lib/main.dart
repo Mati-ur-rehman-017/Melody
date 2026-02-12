@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
 
+import 'pages/discover_page.dart';
 import 'pages/library_page.dart';
-import 'pages/search_page.dart';
 import 'services/database_service.dart';
+import 'theme/app_theme.dart';
 import 'widgets/mini_player.dart';
 
 void main() async {
@@ -33,25 +34,46 @@ void _setupLogging() {
   });
 }
 
-class MelodyApp extends StatelessWidget {
+/// Main application widget with Melody Bubbly theme
+class MelodyApp extends StatefulWidget {
   const MelodyApp({super.key});
+
+  @override
+  State<MelodyApp> createState() => _MelodyAppState();
+}
+
+class _MelodyAppState extends State<MelodyApp> {
+  bool _isDarkMode = false;
+
+  void _toggleTheme() {
+    setState(() {
+      _isDarkMode = !_isDarkMode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Melody',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MainShell(),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      home: MainShell(isDarkMode: _isDarkMode, onToggleTheme: _toggleTheme),
     );
   }
 }
 
-/// Main shell with bottom navigation and mini-player
+/// Main shell with floating pill navigation and mini-player
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final bool isDarkMode;
+  final VoidCallback onToggleTheme;
+
+  const MainShell({
+    super.key,
+    required this.isDarkMode,
+    required this.onToggleTheme,
+  });
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -60,52 +82,135 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
+  final List<Widget> _pages = const [DiscoverPage(), LibraryPage()];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Row(
-          children: [
-            Icon(Icons.music_note),
-            SizedBox(width: 8),
-            Text('Melody'),
-          ],
-        ),
-      ),
-      body: Column(
+      body: Stack(
         children: [
-          // Main content area with page switching
+          // Main content
+          _pages[_currentIndex],
+
+          // Mini player (shows when audio is playing)
+          const Positioned(
+            bottom: 90, // Above the floating nav
+            left: 0,
+            right: 0,
+            child: MiniPlayer(),
+          ),
+
+          // Floating pill navigation
+          Positioned(
+            bottom: 32,
+            left: 24,
+            right: 24,
+            child: _buildFloatingNavigation(),
+          ),
+
+          // Theme toggle button
+          Positioned(top: 16, right: 16, child: _buildThemeToggle()),
+        ],
+      ),
+    );
+  }
+
+  /// Build floating pill navigation bar
+  Widget _buildFloatingNavigation() {
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        color: AppColors.secondary,
+        borderRadius: AppRadius.circular,
+        boxShadow: AppShadows.navigation,
+      ),
+      child: Row(
+        children: [
+          // Explore tab - takes 50% width
           Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: const [SearchPage(), LibraryPage()],
+            child: _buildNavItem(
+              icon: Icons.explore,
+              label: 'Explore',
+              isSelected: _currentIndex == 0,
+              onTap: () => setState(() => _currentIndex = 0),
             ),
           ),
 
-          // Mini player (shows when audio is playing)
-          const MiniPlayer(),
+          // Library tab - takes 50% width
+          Expanded(
+            child: _buildNavItem(
+              icon: Icons.library_music,
+              label: 'Library',
+              isSelected: _currentIndex == 1,
+              onTap: () => setState(() => _currentIndex = 1),
+            ),
+          ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Search',
+    );
+  }
+
+  /// Build individual navigation item
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 64,
+        alignment: Alignment.center,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: isSelected ? 1.1 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  icon,
+                  color: isSelected ? AppColors.primary : Colors.white54,
+                  size: 24,
+                ),
+              ),
+              if (isSelected) ...[
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.library_music_outlined),
-            selectedIcon: Icon(Icons.library_music),
-            label: 'Library',
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  /// Build theme toggle button
+  Widget _buildThemeToggle() {
+    return GestureDetector(
+      onTap: widget.onToggleTheme,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: widget.isDarkMode ? AppColors.cardDark : AppColors.card,
+          shape: BoxShape.circle,
+          boxShadow: AppShadows.bubbly,
+        ),
+        child: Icon(
+          widget.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+          color: widget.isDarkMode ? Colors.white : AppColors.secondary,
+          size: 18,
+        ),
       ),
     );
   }

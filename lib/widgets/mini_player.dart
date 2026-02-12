@@ -6,8 +6,12 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/track.dart';
 import '../services/audio_player_service.dart';
+import '../theme/app_theme.dart';
 
-/// A mini player widget that shows at the bottom when audio is playing
+/// Mini player widget with Melody Bubbly aesthetic
+///
+/// Shows at the bottom when audio is playing with rounded styling,
+/// terracotta progress bar, and soft shadows.
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
@@ -42,25 +46,20 @@ class MiniPlayer extends StatelessWidget {
         }
 
         final track = audioService.currentTrackInQueue;
-        final colorScheme = Theme.of(context).colorScheme;
 
         return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
-              ),
-            ],
+            color: AppColors.card,
+            borderRadius: AppRadius.xLarge,
+            boxShadow: AppShadows.miniPlayer,
           ),
-          child: SafeArea(
-            top: false,
+          child: ClipRRect(
+            borderRadius: AppRadius.xLarge,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Row 1: Progress bar only
+                // Progress bar - terracotta color
                 StreamBuilder<Duration>(
                   stream: audioService.positionStream,
                   builder: (context, posSnapshot) {
@@ -72,14 +71,16 @@ class MiniPlayer extends StatelessWidget {
 
                     return LinearProgressIndicator(
                       value: progress,
-                      minHeight: 2,
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation(colorScheme.primary),
+                      minHeight: 3,
+                      backgroundColor: AppColors.divider,
+                      valueColor: const AlwaysStoppedAnimation(
+                        AppColors.primary,
+                      ),
                     );
                   },
                 ),
 
-                // Row 2: Artwork, Track info, Controls
+                // Content row
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -87,18 +88,18 @@ class MiniPlayer extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      // Artwork thumbnail
+                      // Artwork thumbnail with rounded corners
                       FutureBuilder<String?>(
                         future: _getThumbnailPath(track),
                         builder: (context, snapshot) {
                           final thumbnailPath = snapshot.data;
 
                           return Container(
-                            width: 48,
-                            height: 48,
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(8),
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: AppRadius.medium,
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: thumbnailPath != null
@@ -106,10 +107,10 @@ class MiniPlayer extends StatelessWidget {
                                     File(thumbnailPath),
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
-                                      return _buildPlaceholderIcon(colorScheme);
+                                      return _buildPlaceholderIcon();
                                     },
                                   )
-                                : _buildPlaceholderIcon(colorScheme),
+                                : _buildPlaceholderIcon(),
                           );
                         },
                       ),
@@ -126,16 +127,19 @@ class MiniPlayer extends StatelessWidget {
                                   _formatTrackName(
                                     audioService.currentTrack!.fileName,
                                   ),
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w500),
+                              style: AppTypography.labelLarge.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
                             Text(
                               track?.author ?? 'Unknown Artist',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: Colors.grey[600]),
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -157,9 +161,9 @@ class MiniPlayer extends StatelessWidget {
                                 : null,
                             icon: const Icon(Icons.skip_previous),
                             color: hasQueue
-                                ? colorScheme.onSurface
-                                : Colors.grey[400],
-                            iconSize: 28,
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary.withOpacity(0.3),
+                            iconSize: 24,
                             padding: EdgeInsets.zero,
                             tooltip: 'Previous',
                           );
@@ -167,16 +171,23 @@ class MiniPlayer extends StatelessWidget {
                       ),
 
                       // Play/Pause button
-                      IconButton(
-                        onPressed: () => audioService.togglePlayPause(),
-                        icon: Icon(
-                          isPlaying
-                              ? Icons.pause_circle_filled
-                              : Icons.play_circle_filled,
-                          size: 40,
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: AppShadows.elevated,
                         ),
-                        color: colorScheme.primary,
-                        padding: EdgeInsets.zero,
+                        child: IconButton(
+                          onPressed: () => audioService.togglePlayPause(),
+                          icon: Icon(
+                            isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
                       ),
 
                       // Next button
@@ -193,49 +204,11 @@ class MiniPlayer extends StatelessWidget {
                                 : null,
                             icon: const Icon(Icons.skip_next),
                             color: hasQueue
-                                ? colorScheme.onSurface
-                                : Colors.grey[400],
-                            iconSize: 28,
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary.withOpacity(0.3),
+                            iconSize: 24,
                             padding: EdgeInsets.zero,
                             tooltip: 'Next',
-                          );
-                        },
-                      ),
-
-                      // Repeat mode button
-                      StreamBuilder<RepeatMode>(
-                        stream: audioService.repeatModeStream,
-                        initialData: audioService.repeatMode,
-                        builder: (context, modeSnapshot) {
-                          final mode = modeSnapshot.data ?? RepeatMode.all;
-
-                          IconData icon;
-                          String tooltip;
-
-                          switch (mode) {
-                            case RepeatMode.all:
-                              icon = Icons.repeat;
-                              tooltip = 'Repeat All';
-                              break;
-                            case RepeatMode.one:
-                              icon = Icons.repeat_one;
-                              tooltip = 'Repeat One';
-                              break;
-                            case RepeatMode.off:
-                              icon = Icons.repeat;
-                              tooltip = 'Repeat Off';
-                              break;
-                          }
-
-                          return IconButton(
-                            onPressed: () => audioService.toggleRepeatMode(),
-                            icon: Icon(icon),
-                            color: mode == RepeatMode.off
-                                ? Colors.grey[400]
-                                : colorScheme.primary,
-                            iconSize: 24,
-                            padding: const EdgeInsets.all(4),
-                            tooltip: tooltip,
                           );
                         },
                       ),
@@ -250,13 +223,9 @@ class MiniPlayer extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholderIcon(ColorScheme colorScheme) {
+  Widget _buildPlaceholderIcon() {
     return Center(
-      child: Icon(
-        Icons.music_note,
-        color: colorScheme.onPrimaryContainer,
-        size: 24,
-      ),
+      child: Icon(Icons.music_note, color: AppColors.primary, size: 24),
     );
   }
 

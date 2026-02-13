@@ -124,7 +124,7 @@ class DatabaseService {
   /// Create playlist tables
   Future<void> _createPlaylistTables(Database db) async {
     await db.execute('''
-      CREATE TABLE playlists (
+      CREATE TABLE IF NOT EXISTS playlists (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         created_at INTEGER NOT NULL
@@ -132,7 +132,7 @@ class DatabaseService {
     ''');
 
     await db.execute('''
-      CREATE TABLE playlist_tracks (
+      CREATE TABLE IF NOT EXISTS playlist_tracks (
         playlist_id TEXT NOT NULL,
         track_id TEXT NOT NULL,
         added_at INTEGER NOT NULL,
@@ -143,11 +143,11 @@ class DatabaseService {
     ''');
 
     await db.execute('''
-      CREATE INDEX idx_playlist_tracks_playlist_id ON playlist_tracks(playlist_id)
+      CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist_id ON playlist_tracks(playlist_id)
     ''');
 
     await db.execute('''
-      CREATE INDEX idx_playlist_tracks_track_id ON playlist_tracks(track_id)
+      CREATE INDEX IF NOT EXISTS idx_playlist_tracks_track_id ON playlist_tracks(track_id)
     ''');
   }
 

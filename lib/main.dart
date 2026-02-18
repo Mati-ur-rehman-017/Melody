@@ -5,7 +5,6 @@ import 'package:logging/logging.dart';
 import 'pages/discover_page.dart';
 import 'pages/library_page.dart';
 import 'services/database_service.dart';
-import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/mini_player.dart';
 
@@ -35,75 +34,24 @@ void _setupLogging() {
   });
 }
 
-/// Main application widget with Melody Bubbly theme
-class MelodyApp extends StatefulWidget {
+/// Main application widget with Melody Modern Dark theme
+class MelodyApp extends StatelessWidget {
   const MelodyApp({super.key});
 
   @override
-  State<MelodyApp> createState() => _MelodyAppState();
-}
-
-class _MelodyAppState extends State<MelodyApp> {
-  bool _isDarkMode = false;
-  final ThemeService _themeService = ThemeService();
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadThemePreference();
-  }
-
-  /// Load saved theme preference from SharedPreferences
-  Future<void> _loadThemePreference() async {
-    final isDarkMode = await _themeService.loadThemePreference();
-    setState(() {
-      _isDarkMode = isDarkMode;
-      _isLoading = false;
-    });
-  }
-
-  /// Toggle theme and save preference
-  void _toggleTheme() async {
-    setState(() {
-      _isDarkMode = !_isDarkMode;
-    });
-    await _themeService.saveThemePreference(_isDarkMode);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Show loading indicator while theme preference is loading
-    if (_isLoading) {
-      return MaterialApp(
-        title: 'Melody',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const Scaffold(body: Center(child: CircularProgressIndicator())),
-      );
-    }
-
     return MaterialApp(
       title: 'Melody',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: MainShell(isDarkMode: _isDarkMode, onToggleTheme: _toggleTheme),
+      theme: AppTheme.theme,
+      home: const MainShell(),
     );
   }
 }
 
 /// Main shell with floating pill navigation and mini-player
 class MainShell extends StatefulWidget {
-  final bool isDarkMode;
-  final VoidCallback onToggleTheme;
-
-  const MainShell({
-    super.key,
-    required this.isDarkMode,
-    required this.onToggleTheme,
-  });
+  const MainShell({super.key});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -171,17 +119,6 @@ class _MainShellState extends State<MainShell> {
             left: 24,
             right: 24,
             child: _buildFloatingNavigation(),
-          ),
-
-          // Theme toggle button - aligned with header
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 16, right: 16),
-              child: Align(
-                alignment: Alignment.topRight,
-                child: _buildThemeToggle(),
-              ),
-            ),
           ),
         ],
       ),
@@ -262,27 +199,6 @@ class _MainShellState extends State<MainShell> {
               ],
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Build theme toggle button
-  Widget _buildThemeToggle() {
-    return GestureDetector(
-      onTap: widget.onToggleTheme,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: widget.isDarkMode ? AppColors.cardDark : AppColors.card,
-          shape: BoxShape.circle,
-          boxShadow: AppShadows.bubbly,
-        ),
-        child: Icon(
-          widget.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-          color: widget.isDarkMode ? Colors.white : AppColors.secondary,
-          size: 18,
         ),
       ),
     );

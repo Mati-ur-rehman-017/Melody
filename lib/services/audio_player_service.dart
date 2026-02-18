@@ -13,6 +13,12 @@ final Logger _log = Logger('AudioPlayerService');
 /// Repeat mode for queue playback
 enum RepeatMode { off, all, one }
 
+/// Sleep timer mode
+enum SleepTimerMode { duration, tracks }
+
+/// Sleep timer action
+enum SleepTimerAction { pause, stop, closeApp }
+
 /// Information about the currently playing track
 class TrackInfo {
   final String filePath;
@@ -38,8 +44,10 @@ class AudioPlayerService {
 
   // Queue management
   List<Track> _queue = [];
+  List<Track> _originalQueue = []; // Store original order for shuffle
   int _currentIndex = -1;
   RepeatMode _repeatMode = RepeatMode.all;
+  bool _isShuffleEnabled = false;
 
   // Track info for display
   TrackInfo? _currentTrack;
@@ -51,9 +59,30 @@ class AudioPlayerService {
       StreamController<List<Track>>.broadcast();
   final StreamController<int> _currentIndexController =
       StreamController<int>.broadcast();
+  final StreamController<bool> _shuffleController =
+      StreamController<bool>.broadcast();
+  final StreamController<double> _speedController =
+      StreamController<double>.broadcast();
+
+  // Sleep timer
+  Timer? _sleepTimer;
+  Timer? _fadeOutTimer;
+  DateTime? _sleepTimerEndTime;
+  SleepTimerMode _sleepTimerMode = SleepTimerMode.duration;
+  int? _sleepTimerTrackCount;
+  SleepTimerAction _sleepTimerAction = SleepTimerAction.pause;
 
   /// Currently playing track info
   TrackInfo? get currentTrack => _currentTrack;
+
+  /// Sleep timer end time (null if no timer set)
+  DateTime? get sleepTimerEndTime => _sleepTimerEndTime;
+
+  /// Whether shuffle is enabled
+  bool get isShuffleEnabled => _isShuffleEnabled;
+
+  /// Current playback speed
+  double get playbackSpeed => _player.speed;
 
   /// Current playback queue
   List<Track> get queue => List.unmodifiable(_queue);
@@ -99,6 +128,12 @@ class AudioPlayerService {
   /// Stream of current index changes
   Stream<int> get currentIndexStream => _currentIndexController.stream;
 
+  /// Stream of shuffle state changes
+  Stream<bool> get shuffleStream => _shuffleController.stream;
+
+  /// Stream of playback speed changes
+  Stream<double> get speedStream => _speedController.stream;
+
   /// Current playback position
   Duration get position => _player.position;
 
@@ -116,7 +151,7 @@ class AudioPlayerService {
     _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         _log.fine('Playback completed');
-        _handleTrackCompletion();
+        _handleTrackCompletionWithSleepTimer();
       }
     });
   }
@@ -168,10 +203,22 @@ class AudioPlayerService {
       startIndex = 0;
     }
 
-    _queue = List.from(tracks);
+    _originalQueue = List.from(tracks);
+
+    // Apply shuffle if enabled
+    if (_isShuffleEnabled) {
+      _queue = _shuffleList(_originalQueue, startIndex);
+      // Find the new index of the starting track
+      final startTrack = tracks[startIndex];
+      _currentIndex = _queue.indexWhere((t) => t.id == startTrack.id);
+    } else {
+      _queue = List.from(tracks);
+      _currentIndex = startIndex;
+    }
+
     _queueController.add(_queue);
 
-    await _playQueueIndex(startIndex);
+    await _playQueueIndex(_currentIndex);
   }
 
   /// Play the track at the specified queue index
@@ -265,6 +312,22 @@ class AudioPlayerService {
 
     _log.info('Going to previous track, index: $prevIndex');
     await _playQueueIndex(prevIndex);
+  }
+
+  /// Skip to a specific queue index
+  Future<void> skipToQueueIndex(int index) async {
+    if (_queue.isEmpty) {
+      _log.warning('No queue set, cannot skip');
+      return;
+    }
+
+    if (index < 0 || index >= _queue.length) {
+      _log.warning('Invalid queue index: $index');
+      return;
+    }
+
+    _log.info('Skipping to queue index: $index');
+    await _playQueueIndex(index);
   }
 
   /// Set repeat mode
@@ -369,11 +432,191 @@ class AudioPlayerService {
     }
   }
 
+  /// Toggle shuffle mode
+  void toggleShuffle() {
+    _isShuffleEnabled = !_isShuffleEnabled;
+    _log.info('Shuffle mode: $_isShuffleEnabled');
+
+    if (_isShuffleEnabled) {
+      // Store current track before shuffling
+      final currentTrack = _currentIndex >= 0 && _currentIndex < _queue.length
+          ? _queue[_currentIndex]
+          : null;
+
+      // Shuffle the queue
+      _queue = _shuffleList(_queue, _currentIndex);
+
+      // Update current index to reflect new position
+      if (currentTrack != null) {
+        _currentIndex = _queue.indexWhere((t) => t.id == currentTrack.id);
+      }
+    } else {
+      // Restore original order
+      final currentTrack = _currentIndex >= 0 && _currentIndex < _queue.length
+          ? _queue[_currentIndex]
+          : null;
+
+      _queue = List.from(_originalQueue);
+
+      // Restore current index
+      if (currentTrack != null) {
+        _currentIndex = _queue.indexWhere((t) => t.id == currentTrack.id);
+      }
+    }
+
+    _queueController.add(_queue);
+    _currentIndexController.add(_currentIndex);
+    _shuffleController.add(_isShuffleEnabled);
+  }
+
+  /// Shuffle a list while keeping the item at currentIndex at position 0
+  List<Track> _shuffleList(List<Track> list, int currentIndex) {
+    if (list.isEmpty || list.length == 1) return List.from(list);
+
+    final shuffled = List<Track>.from(list);
+    final currentTrack = currentIndex >= 0 && currentIndex < shuffled.length
+        ? shuffled.removeAt(currentIndex)
+        : null;
+
+    // Fisher-Yates shuffle
+    final random = DateTime.now().millisecondsSinceEpoch;
+    for (int i = shuffled.length - 1; i > 0; i--) {
+      final j = (random + i * 31) % (i + 1);
+      final temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+
+    // Put current track at the beginning
+    if (currentTrack != null) {
+      shuffled.insert(0, currentTrack);
+    }
+
+    return shuffled;
+  }
+
+  /// Set playback speed
+  Future<void> setPlaybackSpeed(double speed) async {
+    final clampedSpeed = speed.clamp(0.5, 2.0);
+    _log.info('Setting playback speed to $clampedSpeed');
+    await _player.setSpeed(clampedSpeed);
+    _speedController.add(clampedSpeed);
+  }
+
+  /// Set a sleep timer with advanced options
+  void setSleepTimer({
+    Duration? duration,
+    int? trackCount,
+    SleepTimerAction action = SleepTimerAction.pause,
+    Duration fadeOutDuration = const Duration(seconds: 10),
+  }) {
+    // Cancel any existing timer
+    cancelSleepTimer();
+
+    if (duration != null) {
+      _sleepTimerMode = SleepTimerMode.duration;
+      _sleepTimerEndTime = DateTime.now().add(duration);
+      _sleepTimerAction = action;
+
+      _log.info('Setting sleep timer for $duration with action: $action');
+
+      // Start fade out before timer ends
+      if (fadeOutDuration < duration) {
+        final fadeOutStart = duration - fadeOutDuration;
+        _fadeOutTimer = Timer(fadeOutStart, () {
+          _log.info('Starting fade out');
+          _startFadeOut(fadeOutDuration);
+        });
+      }
+
+      _sleepTimer = Timer(duration, () {
+        _log.info('Sleep timer triggered - executing action: $action');
+        _executeSleepTimerAction(action);
+        _sleepTimerEndTime = null;
+      });
+    } else if (trackCount != null) {
+      _sleepTimerMode = SleepTimerMode.tracks;
+      _sleepTimerTrackCount = trackCount;
+      _sleepTimerAction = action;
+      _sleepTimerEndTime = null; // No specific end time for track-based
+      _log.info('Setting sleep timer for $trackCount tracks');
+    }
+  }
+
+  /// Start fading out volume
+  void _startFadeOut(Duration duration) async {
+    final steps = 20;
+    final stepDuration = duration ~/ steps;
+    final originalVolume = 1.0; // Assume full volume
+
+    for (int i = 0; i < steps; i++) {
+      if (_sleepTimer == null) break; // Timer was cancelled
+      final volume = originalVolume * (1 - (i / steps));
+      await _player.setVolume(volume);
+      await Future.delayed(stepDuration);
+    }
+  }
+
+  /// Execute the sleep timer action
+  void _executeSleepTimerAction(SleepTimerAction action) {
+    switch (action) {
+      case SleepTimerAction.pause:
+        pause();
+        break;
+      case SleepTimerAction.stop:
+        stop();
+        break;
+      case SleepTimerAction.closeApp:
+        pause();
+        // Note: Actually closing the app requires platform-specific code
+        break;
+    }
+    // Reset volume
+    _player.setVolume(1.0);
+  }
+
+  /// Handle track completion for track-based sleep timer
+  void _handleTrackCompletionWithSleepTimer() {
+    if (_sleepTimerMode == SleepTimerMode.tracks &&
+        _sleepTimerTrackCount != null) {
+      _sleepTimerTrackCount = _sleepTimerTrackCount! - 1;
+      _log.info(
+        'Track-based sleep timer: $_sleepTimerTrackCount tracks remaining',
+      );
+
+      if (_sleepTimerTrackCount! <= 0) {
+        _log.info('Track-based sleep timer expired');
+        _executeSleepTimerAction(_sleepTimerAction);
+        cancelSleepTimer();
+        return;
+      }
+    }
+    _handleTrackCompletion();
+  }
+
+  /// Cancel the active sleep timer
+  void cancelSleepTimer() {
+    if (_sleepTimer != null || _fadeOutTimer != null) {
+      _log.info('Cancelling sleep timer');
+      _sleepTimer?.cancel();
+      _fadeOutTimer?.cancel();
+      _sleepTimer = null;
+      _fadeOutTimer = null;
+      _sleepTimerEndTime = null;
+      _sleepTimerTrackCount = null;
+      // Reset volume
+      _player.setVolume(1.0);
+    }
+  }
+
   /// Dispose of resources
   Future<void> dispose() async {
+    cancelSleepTimer();
     await _repeatModeController.close();
     await _queueController.close();
     await _currentIndexController.close();
+    await _shuffleController.close();
+    await _speedController.close();
     await _player.dispose();
   }
 }

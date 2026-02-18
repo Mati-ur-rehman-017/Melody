@@ -12,6 +12,7 @@ class AudioFileTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback? onAddToPlaylist;
+  final VoidCallback? onSwipePlay;
 
   const AudioFileTile({
     super.key,
@@ -21,6 +22,7 @@ class AudioFileTile extends StatelessWidget {
     required this.onTap,
     required this.onDelete,
     this.onAddToPlaylist,
+    this.onSwipePlay,
   });
 
   /// Get the full path to the thumbnail file
@@ -41,7 +43,7 @@ class AudioFileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
+    Widget cardContent = Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: isCurrentTrack ? colorScheme.primaryContainer : null,
       child: InkWell(
@@ -163,6 +165,28 @@ class AudioFileTile extends StatelessWidget {
         ),
       ),
     );
+
+    // Wrap with Dismissible if swipe-to-play is enabled
+    if (onSwipePlay != null) {
+      return Dismissible(
+        key: Key('swipe_${track.id}'),
+        direction: DismissDirection.endToStart,
+        onDismissed: (_) => onSwipePlay!(),
+        background: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.green.shade400,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
+        ),
+        child: cardContent,
+      );
+    }
+
+    return cardContent;
   }
 
   Widget _buildThumbnail(BuildContext context, ColorScheme colorScheme) {

@@ -13,7 +13,7 @@ import '../models/track.dart';
 final Logger _log = Logger('DatabaseService');
 
 /// Database version for migrations
-const int _databaseVersion = 3;
+const int _databaseVersion = 4;
 
 /// Database filename
 const String _databaseName = 'melody.db';
@@ -118,6 +118,21 @@ class DatabaseService {
       _log.info('Creating playlist tables...');
       await _createPlaylistTables(db);
       _log.info('Migration to v3 complete');
+    }
+
+    // Migration from v3 to v4: add waveforms table
+    if (oldVersion < 4) {
+      _log.info('Creating waveforms table...');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS waveforms (
+          track_id TEXT PRIMARY KEY,
+          amplitudes TEXT NOT NULL,
+          samples_per_second INTEGER NOT NULL,
+          duration_ms INTEGER NOT NULL,
+          extracted_at TEXT NOT NULL
+        )
+      ''');
+      _log.info('Migration to v4 complete');
     }
   }
 
@@ -568,5 +583,60 @@ class DatabaseService {
     final tracks = maps.map((map) => Track.fromMap(map)).toList();
     _log.fine('Retrieved ${tracks.length} tracks not in playlist');
     return tracks;
+  }
+
+  /// Save waveform data for a track
+  Future<void> saveWaveform({
+    required String trackId,
+    required List<double> amplitudes,
+    required int samplesPerSecond,
+    required int durationMs,
+  }) async {
+    _ensureInitialized();
+    _log.fine('Saving waveform for track: $trackId');
+
+    await _database!.insert('waveforms', {
+      'track_id': trackId,
+      'amplitudes': amplitudes.join(','),
+      'samples_per_second': samplesPerSecond,
+      'duration_ms': durationMs,
+      'extracted_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    _log.fine('Waveform saved for track: $trackId');
+  }
+
+  /// Load waveform data for a track
+  Future<Map<String, dynamic>?> getWaveform(String trackId) async {
+    _ensureInitialized();
+    _log.fine('Loading waveform for track: $trackId');
+
+    final results = await _database!.query(
+      'waveforms',
+      where: 'track_id = ?',
+      whereArgs: [trackId],
+    );
+
+    if (results.isEmpty) {
+      _log.fine('No waveform found for track: $trackId');
+      return null;
+    }
+
+    _log.fine('Waveform found for track: $trackId');
+    return results.first;
+  }
+
+  /// Check if waveform exists for a track
+  Future<bool> hasWaveform(String trackId) async {
+    _ensureInitialized();
+
+    final results = await _database!.query(
+      'waveforms',
+      columns: ['track_id'],
+      where: 'track_id = ?',
+      whereArgs: [trackId],
+      limit: 1,
+    );
+
+    return results.isNotEmpty;
   }
 }

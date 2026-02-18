@@ -440,11 +440,7 @@ class _DiscoverPageState extends State<DiscoverPage>
                       color: AppColors.primary.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.tune,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
+                    child: Icon(Icons.tune, size: 16, color: AppColors.primary),
                   ),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
@@ -931,7 +927,7 @@ class _DiscoverPageState extends State<DiscoverPage>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.error_outline,
                       size: 64,
                       color: AppColors.primary,

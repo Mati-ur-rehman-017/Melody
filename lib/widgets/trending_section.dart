@@ -272,7 +272,7 @@ class _SongCard extends StatelessWidget {
   Widget _buildPlaceholder() {
     return Container(
       color: AppColors.secondary.withOpacity(0.1),
-      child: const Center(
+      child: Center(
         child: Icon(Icons.music_note, color: AppColors.secondary, size: 40),
       ),
     );

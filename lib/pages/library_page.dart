@@ -365,30 +365,6 @@ class _LibraryPageState extends State<LibraryPage>
                 ),
               ],
             ),
-
-            // FAB - positioned dynamically based on mini player visibility
-            StreamBuilder<PlayerState>(
-              stream: _audioService.playerStateStream,
-              builder: (context, snapshot) {
-                final playerState = snapshot.data;
-                final isPlayerVisible =
-                    playerState?.processingState != ProcessingState.idle &&
-                    _audioService.currentTrack != null;
-
-                return AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  right: 24,
-                  bottom: isPlayerVisible ? 150 : 90,
-                  child: FloatingActionButton(
-                    onPressed: _activeTab == 'songs' ? null : _createPlaylist,
-                    backgroundColor: AppColors.primary,
-                    elevation: 4,
-                    child: const Icon(Icons.add, size: 32),
-                  ),
-                );
-              },
-            ),
           ],
         ),
       ),
@@ -519,7 +495,7 @@ class _LibraryPageState extends State<LibraryPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: AppColors.primary),
+            Icon(Icons.error_outline, size: 64, color: AppColors.primary),
             const SizedBox(height: 16),
             Text(
               _tracksErrorMessage!,
@@ -605,7 +581,7 @@ class _LibraryPageState extends State<LibraryPage>
                             color: AppColors.primary,
                           ),
                         ),
-                        const Icon(
+                        Icon(
                           Icons.chevron_right,
                           size: 18,
                           color: AppColors.primary,
@@ -758,14 +734,14 @@ class _LibraryPageState extends State<LibraryPage>
                                           height: 64,
                                           errorBuilder:
                                               (context, error, stackTrace) {
-                                                return const Icon(
+                                                return Icon(
                                                   Icons.music_note,
                                                   color: AppColors.secondary,
                                                   size: 32,
                                                 );
                                               },
                                         )
-                                      : const Icon(
+                                      : Icon(
                                           Icons.music_note,
                                           color: AppColors.secondary,
                                           size: 32,
@@ -933,7 +909,7 @@ class _LibraryPageState extends State<LibraryPage>
                 color: AppColors.secondary.withOpacity(0.1),
                 borderRadius: AppRadius.medium,
               ),
-              child: const Center(
+              child: Center(
                 child: Icon(
                   Icons.queue_music,
                   color: AppColors.secondary,
@@ -971,7 +947,7 @@ class _LibraryPageState extends State<LibraryPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: AppColors.primary),
+            Icon(Icons.error_outline, size: 64, color: AppColors.primary),
             const SizedBox(height: 16),
             Text(
               _playlistsErrorMessage!,
@@ -1055,7 +1031,7 @@ class _LibraryPageState extends State<LibraryPage>
                           color: AppColors.primary.withOpacity(0.1),
                           borderRadius: AppRadius.medium,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.queue_music,
                           color: AppColors.primary,
                           size: 28,

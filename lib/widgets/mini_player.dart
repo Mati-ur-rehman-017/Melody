@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/track.dart';
+import '../pages/player_page.dart';
 import '../services/audio_player_service.dart';
 import '../theme/app_theme.dart';
 
@@ -47,175 +48,184 @@ class MiniPlayer extends StatelessWidget {
 
         final track = audioService.currentTrackInQueue;
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: AppRadius.xLarge,
-            boxShadow: AppShadows.miniPlayer,
-          ),
-          child: ClipRRect(
-            borderRadius: AppRadius.xLarge,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Progress bar - terracotta color
-                StreamBuilder<Duration>(
-                  stream: audioService.positionStream,
-                  builder: (context, posSnapshot) {
-                    final position = posSnapshot.data ?? Duration.zero;
-                    final duration = audioService.duration ?? Duration.zero;
-                    final progress = duration.inMilliseconds > 0
-                        ? position.inMilliseconds / duration.inMilliseconds
-                        : 0.0;
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const PlayerPage(),
+                fullscreenDialog: true,
+              ),
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: AppRadius.xLarge,
+              boxShadow: AppShadows.miniPlayer,
+            ),
+            child: ClipRRect(
+              borderRadius: AppRadius.xLarge,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Progress bar - terracotta color
+                  StreamBuilder<Duration>(
+                    stream: audioService.positionStream,
+                    builder: (context, posSnapshot) {
+                      final position = posSnapshot.data ?? Duration.zero;
+                      final duration = audioService.duration ?? Duration.zero;
+                      final progress = duration.inMilliseconds > 0
+                          ? position.inMilliseconds / duration.inMilliseconds
+                          : 0.0;
 
-                    return LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 3,
-                      backgroundColor: AppColors.divider,
-                      valueColor: const AlwaysStoppedAnimation(
-                        AppColors.primary,
-                      ),
-                    );
-                  },
-                ),
-
-                // Content row
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                      return LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 3,
+                        backgroundColor: AppColors.divider,
+                        valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                      );
+                    },
                   ),
-                  child: Row(
-                    children: [
-                      // Artwork thumbnail with rounded corners
-                      FutureBuilder<String?>(
-                        future: _getThumbnailPath(track),
-                        builder: (context, snapshot) {
-                          final thumbnailPath = snapshot.data;
 
-                          return Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: AppRadius.medium,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: thumbnailPath != null
-                                ? Image.file(
-                                    File(thumbnailPath),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return _buildPlaceholderIcon();
-                                    },
-                                  )
-                                : _buildPlaceholderIcon(),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 12),
+                  // Content row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        // Artwork thumbnail with rounded corners
+                        FutureBuilder<String?>(
+                          future: _getThumbnailPath(track),
+                          builder: (context, snapshot) {
+                            final thumbnailPath = snapshot.data;
 
-                      // Track info (expanded)
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              track?.title ??
-                                  _formatTrackName(
-                                    audioService.currentTrack!.fileName,
-                                  ),
-                              style: AppTypography.labelLarge.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                            return Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: AppRadius.medium,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              track?.author ?? 'Unknown Artist',
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textSecondary,
+                              clipBehavior: Clip.antiAlias,
+                              child: thumbnailPath != null
+                                  ? Image.file(
+                                      File(thumbnailPath),
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return _buildPlaceholderIcon();
+                                          },
+                                    )
+                                  : _buildPlaceholderIcon(),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Track info (expanded)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                track?.title ??
+                                    _formatTrackName(
+                                      audioService.currentTrack!.fileName,
+                                    ),
+                                style: AppTypography.labelLarge.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Previous button
-                      StreamBuilder<List<Track>>(
-                        stream: audioService.queueStream,
-                        initialData: audioService.queue,
-                        builder: (context, queueSnapshot) {
-                          final hasQueue =
-                              queueSnapshot.data?.isNotEmpty ?? false;
-
-                          return IconButton(
-                            onPressed: hasQueue
-                                ? () => audioService.previous()
-                                : null,
-                            icon: const Icon(Icons.skip_previous),
-                            color: hasQueue
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary.withOpacity(0.3),
-                            iconSize: 24,
-                            padding: EdgeInsets.zero,
-                            tooltip: 'Previous',
-                          );
-                        },
-                      ),
-
-                      // Play/Pause button
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          boxShadow: AppShadows.elevated,
-                        ),
-                        child: IconButton(
-                          onPressed: () => audioService.togglePlayPause(),
-                          icon: Icon(
-                            isPlaying ? Icons.pause : Icons.play_arrow,
-                            color: Colors.white,
-                            size: 24,
+                              const SizedBox(height: 2),
+                              Text(
+                                track?.author ?? 'Unknown Artist',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          padding: EdgeInsets.zero,
                         ),
-                      ),
 
-                      // Next button
-                      StreamBuilder<List<Track>>(
-                        stream: audioService.queueStream,
-                        initialData: audioService.queue,
-                        builder: (context, queueSnapshot) {
-                          final hasQueue =
-                              queueSnapshot.data?.isNotEmpty ?? false;
+                        // Previous button
+                        StreamBuilder<List<Track>>(
+                          stream: audioService.queueStream,
+                          initialData: audioService.queue,
+                          builder: (context, queueSnapshot) {
+                            final hasQueue =
+                                queueSnapshot.data?.isNotEmpty ?? false;
 
-                          return IconButton(
-                            onPressed: hasQueue
-                                ? () => audioService.next()
-                                : null,
-                            icon: const Icon(Icons.skip_next),
-                            color: hasQueue
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary.withOpacity(0.3),
-                            iconSize: 24,
+                            return IconButton(
+                              onPressed: hasQueue
+                                  ? () => audioService.previous()
+                                  : null,
+                              icon: const Icon(Icons.skip_previous),
+                              color: hasQueue
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary.withOpacity(0.3),
+                              iconSize: 24,
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Previous',
+                            );
+                          },
+                        ),
+
+                        // Play/Pause button
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: AppShadows.elevated,
+                          ),
+                          child: IconButton(
+                            onPressed: () => audioService.togglePlayPause(),
+                            icon: Icon(
+                              isPlaying ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                             padding: EdgeInsets.zero,
-                            tooltip: 'Next',
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                        ),
+
+                        // Next button
+                        StreamBuilder<List<Track>>(
+                          stream: audioService.queueStream,
+                          initialData: audioService.queue,
+                          builder: (context, queueSnapshot) {
+                            final hasQueue =
+                                queueSnapshot.data?.isNotEmpty ?? false;
+
+                            return IconButton(
+                              onPressed: hasQueue
+                                  ? () => audioService.next()
+                                  : null,
+                              icon: const Icon(Icons.skip_next),
+                              color: hasQueue
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary.withOpacity(0.3),
+                              iconSize: 24,
+                              padding: EdgeInsets.zero,
+                              tooltip: 'Next',
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

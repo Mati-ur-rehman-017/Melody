@@ -194,7 +194,7 @@ class _SleepTimerDialogState extends State<SleepTimerDialog>
                       icon: const Icon(Icons.cancel_outlined),
                       label: const Text('Cancel Timer'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                         foregroundColor: AppColors.primary,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -434,7 +434,7 @@ class _SleepTimerDialogState extends State<SleepTimerDialog>
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.1)
+              ? AppColors.primary.withValues(alpha: 0.1)
               : AppColors.background,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
@@ -494,7 +494,7 @@ class _SleepTimerDialogState extends State<SleepTimerDialog>
         Switch(
           value: _enableFadeOut,
           onChanged: (value) => setState(() => _enableFadeOut = value),
-          activeColor: AppColors.primary,
+          activeThumbColor: AppColors.primary,
         ),
       ],
     );

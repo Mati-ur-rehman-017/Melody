@@ -38,7 +38,7 @@ class QueueView extends StatelessWidget {
 
             return Container(
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
+                color: Colors.black.withValues(alpha: 0.8),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(24),
                 ),
@@ -156,7 +156,7 @@ class _QueueListTile extends StatelessWidget {
         ),
         subtitle: Text(
           track.author,
-          style: TextStyle(color: Colors.white.withOpacity(0.7)),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -171,7 +171,7 @@ class _QueueListTile extends StatelessWidget {
               )
             : null,
         onTap: onTap,
-        tileColor: isCurrentTrack ? Colors.white.withOpacity(0.1) : null,
+        tileColor: isCurrentTrack ? Colors.white.withValues(alpha: 0.1) : null,
       ),
     );
   }

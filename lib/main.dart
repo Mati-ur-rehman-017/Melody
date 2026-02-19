@@ -100,8 +100,6 @@ class _MainShellState extends State<MainShell> {
           PageView(
             controller: _pageController,
             onPageChanged: _onPageChanged,
-            physics: const BouncingScrollPhysics(),
-            allowImplicitScrolling: true,
             children: _pages,
           ),
 

@@ -49,6 +49,7 @@ class MiniPlayer extends StatelessWidget {
         final track = audioService.currentTrackInQueue;
 
         return GestureDetector(
+          behavior: HitTestBehavior.translucent,
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -106,7 +107,7 @@ class MiniPlayer extends StatelessWidget {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
+                                color: AppColors.primary.withValues(alpha: 0.1),
                                 borderRadius: AppRadius.medium,
                               ),
                               clipBehavior: Clip.antiAlias,
@@ -171,7 +172,9 @@ class MiniPlayer extends StatelessWidget {
                               icon: const Icon(Icons.skip_previous),
                               color: hasQueue
                                   ? AppColors.textPrimary
-                                  : AppColors.textSecondary.withOpacity(0.3),
+                                  : AppColors.textSecondary.withValues(
+                                      alpha: 0.3,
+                                    ),
                               iconSize: 24,
                               padding: EdgeInsets.zero,
                               tooltip: 'Previous',
@@ -214,7 +217,9 @@ class MiniPlayer extends StatelessWidget {
                               icon: const Icon(Icons.skip_next),
                               color: hasQueue
                                   ? AppColors.textPrimary
-                                  : AppColors.textSecondary.withOpacity(0.3),
+                                  : AppColors.textSecondary.withValues(
+                                      alpha: 0.3,
+                                    ),
                               iconSize: 24,
                               padding: EdgeInsets.zero,
                               tooltip: 'Next',

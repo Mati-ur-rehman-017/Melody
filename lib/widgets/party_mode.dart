@@ -53,25 +53,25 @@ class _PartyModeContainerState extends State<PartyModeContainer>
         return Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: widget.color.withOpacity(glowOpacity * 0.5),
+              color: widget.color.withValues(alpha: glowOpacity * 0.5),
               width: 2,
             ),
             boxShadow: [
               // Inner glow
               BoxShadow(
-                color: widget.color.withOpacity(glowOpacity * 0.3),
+                color: widget.color.withValues(alpha: glowOpacity * 0.3),
                 blurRadius: 20,
                 spreadRadius: -5,
               ),
               // Outer glow
               BoxShadow(
-                color: widget.color.withOpacity(glowOpacity * 0.2),
+                color: widget.color.withValues(alpha: glowOpacity * 0.2),
                 blurRadius: 40,
                 spreadRadius: 5,
               ),
               // Secondary outer glow
               BoxShadow(
-                color: widget.color.withOpacity(glowOpacity * 0.1),
+                color: widget.color.withValues(alpha: glowOpacity * 0.1),
                 blurRadius: 80,
                 spreadRadius: 20,
               ),

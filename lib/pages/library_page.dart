@@ -6,14 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:logging/logging.dart';
 
-import '../constants.dart';
 import '../models/playlist.dart';
 import '../models/track.dart';
 import '../services/audio_player_service.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_to_playlist_dialog.dart';
-import '../widgets/create_playlist_dialog.dart';
 import 'playlist_detail_page.dart';
 
 final Logger _log = Logger('LibraryPage');
@@ -246,31 +244,6 @@ class _LibraryPageState extends State<LibraryPage>
     return _audioService.isCurrentQueueTrack(track);
   }
 
-  Future<void> _createPlaylist() async {
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => const CreatePlaylistDialog(),
-    );
-
-    if (name != null && name.isNotEmpty) {
-      try {
-        await _dbService.createPlaylist(name);
-        await _loadPlaylists();
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Playlist created')));
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error creating playlist: $e')),
-          );
-        }
-      }
-    }
-  }
-
   Future<void> _deletePlaylist(Playlist playlist) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -393,7 +366,7 @@ class _LibraryPageState extends State<LibraryPage>
               Text(
                 'Your favorite sounds',
                 style: AppTypography.bodyMedium.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -436,7 +409,7 @@ class _LibraryPageState extends State<LibraryPage>
                     style: AppTypography.labelLarge.copyWith(
                       color: _activeTab == 'songs'
                           ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurface.withOpacity(0.7),
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       fontWeight: _activeTab == 'songs'
                           ? FontWeight.bold
                           : FontWeight.normal,
@@ -467,7 +440,7 @@ class _LibraryPageState extends State<LibraryPage>
                     style: AppTypography.labelLarge.copyWith(
                       color: _activeTab == 'playlists'
                           ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurface.withOpacity(0.7),
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       fontWeight: _activeTab == 'playlists'
                           ? FontWeight.bold
                           : FontWeight.normal,
@@ -536,11 +509,11 @@ class _LibraryPageState extends State<LibraryPage>
                   decoration: InputDecoration(
                     hintText: 'Search songs...',
                     hintStyle: AppTypography.bodyMedium.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                     prefixIcon: Icon(
                       Icons.search,
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
@@ -616,20 +589,20 @@ class _LibraryPageState extends State<LibraryPage>
             Icon(
               Icons.library_music,
               size: 64,
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
               'No downloads yet',
               style: AppTypography.heading3.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Download some audio to see it here',
               style: AppTypography.bodyMedium.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
               textAlign: TextAlign.center,
             ),
@@ -718,7 +691,7 @@ class _LibraryPageState extends State<LibraryPage>
                             height: 64,
                             decoration: BoxDecoration(
                               borderRadius: AppRadius.medium,
-                              color: AppColors.secondary.withOpacity(0.1),
+                              color: AppColors.secondary.withValues(alpha: 0.1),
                             ),
                             child: ClipRRect(
                               borderRadius: AppRadius.medium,
@@ -785,8 +758,8 @@ class _LibraryPageState extends State<LibraryPage>
                             Text(
                               '${track.author} • ${track.formattedDuration}',
                               style: AppTypography.bodySmall.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(
-                                  0.7,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.7,
                                 ),
                               ),
                               maxLines: 1,
@@ -800,7 +773,9 @@ class _LibraryPageState extends State<LibraryPage>
                       PopupMenuButton<String>(
                         icon: Icon(
                           Icons.more_vert,
-                          color: theme.colorScheme.onSurface.withOpacity(0.3),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.3,
+                          ),
                         ),
                         onSelected: (value) {
                           if (value == 'add_to_playlist') {
@@ -849,91 +824,6 @@ class _LibraryPageState extends State<LibraryPage>
     );
   }
 
-  /// Build jump back in section
-  Widget _buildJumpBackInSection() {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-          child: Text(
-            'Jump Back In',
-            style: AppTypography.heading3.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ),
-
-        // Horizontal scroll
-        SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            itemCount: AppConstants.jumpBackIn.length,
-            itemBuilder: (context, index) {
-              final playlist = AppConstants.jumpBackIn[index];
-              return _buildJumpBackInCard(playlist);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Build jump back in card
-  Widget _buildJumpBackInCard(PlaylistPreview playlist) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: 160,
-      margin: const EdgeInsets.only(right: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Playlist image
-          Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              color: Color(playlist.backgroundColor),
-              borderRadius: AppRadius.large,
-              boxShadow: AppShadows.bubbly,
-            ),
-            padding: const EdgeInsets.all(8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withOpacity(0.1),
-                borderRadius: AppRadius.medium,
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.queue_music,
-                  color: AppColors.secondary,
-                  size: 48,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Playlist name
-          Text(
-            playlist.name,
-            style: AppTypography.labelLarge.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
   /// Build playlists tab
   Widget _buildPlaylistsTab() {
     final theme = Theme.of(context);
@@ -975,20 +865,20 @@ class _LibraryPageState extends State<LibraryPage>
             Icon(
               Icons.queue_music,
               size: 64,
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
               'No playlists yet',
               style: AppTypography.heading3.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Create a playlist to organize your songs',
               style: AppTypography.bodyMedium.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
               textAlign: TextAlign.center,
             ),
@@ -1028,7 +918,7 @@ class _LibraryPageState extends State<LibraryPage>
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: AppRadius.medium,
                         ),
                         child: Icon(
@@ -1055,8 +945,8 @@ class _LibraryPageState extends State<LibraryPage>
                             Text(
                               '${playlist.trackCount ?? 0} songs',
                               style: AppTypography.bodySmall.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(
-                                  0.7,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.7,
                                 ),
                               ),
                             ),
@@ -1067,7 +957,9 @@ class _LibraryPageState extends State<LibraryPage>
                       // Arrow
                       Icon(
                         Icons.chevron_right,
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                     ],
                   ),

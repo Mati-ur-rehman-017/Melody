@@ -187,7 +187,7 @@ class _PlayerPageState extends State<PlayerPage> {
                     width: MediaQuery.of(context).size.width * 0.75,
                     height: MediaQuery.of(context).size.width * 0.75,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: AppRadius.xxLarge,
                       boxShadow: AppShadows.bubbly,
                     ),
@@ -569,7 +569,7 @@ class _PlayerPageState extends State<PlayerPage> {
     return Container(
       decoration: BoxDecoration(
         color: isActive
-            ? AppColors.primary.withOpacity(0.1)
+            ? AppColors.primary.withValues(alpha: 0.1)
             : Colors.transparent,
         shape: BoxShape.circle,
       ),
@@ -707,7 +707,7 @@ class _PlayerPageState extends State<PlayerPage> {
         height: 48,
         decoration: BoxDecoration(
           color: isCurrentTrack
-              ? AppColors.primary.withOpacity(0.1)
+              ? AppColors.primary.withValues(alpha: 0.1)
               : AppColors.divider,
           borderRadius: AppRadius.medium,
         ),

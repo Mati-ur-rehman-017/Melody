@@ -343,8 +343,6 @@ class AppTheme {
         surface: Color(0xFF121212),
         surfaceContainerHighest: Color(0xFF1E1E1E),
         onSurface: Colors.white,
-        background: Color(0xFF000000),
-        onBackground: Colors.white,
         outline: Color(0xFF282828),
       ),
       scaffoldBackgroundColor: AppColors.background,

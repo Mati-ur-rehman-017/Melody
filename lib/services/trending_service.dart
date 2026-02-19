@@ -91,10 +91,9 @@ class TrendingService {
           id: result.id.value,
           title: result.title,
           artist: result.author,
-          thumbnailUrl:
-              result.thumbnails.mediumResUrl ??
-              result.thumbnails.lowResUrl ??
-              '',
+          thumbnailUrl: result.thumbnails.mediumResUrl.isNotEmpty
+              ? result.thumbnails.mediumResUrl
+              : result.thumbnails.lowResUrl,
           duration: result.duration,
           cachedAt: DateTime.now(),
         );
@@ -117,10 +116,9 @@ class TrendingService {
           id: result.id.value,
           title: result.title,
           artist: result.author,
-          thumbnailUrl:
-              result.thumbnails.mediumResUrl ??
-              result.thumbnails.lowResUrl ??
-              '',
+          thumbnailUrl: result.thumbnails.mediumResUrl.isNotEmpty
+              ? result.thumbnails.mediumResUrl
+              : result.thumbnails.lowResUrl,
           duration: result.duration,
           cachedAt: DateTime.now(),
         );

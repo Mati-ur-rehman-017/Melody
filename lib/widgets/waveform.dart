@@ -4,17 +4,14 @@ import 'package:flutter/material.dart';
 /// Animated waveform visualization component
 ///
 /// Displays animated bars that simulate audio waveform
-/// with progress indication and seek functionality
 class WaveformComponent extends StatefulWidget {
   final Duration duration;
   final Color color;
-  final Function(double position)? onSeek;
 
   const WaveformComponent({
     super.key,
     required this.duration,
     required this.color,
-    this.onSeek,
   });
 
   @override
@@ -57,53 +54,43 @@ class _WaveformComponentState extends State<WaveformComponent>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapUp: (details) {
-        if (widget.onSeek != null) {
-          final box = context.findRenderObject() as RenderBox;
-          final localPosition = details.localPosition;
-          final position = localPosition.dx / box.size.width;
-          widget.onSeek!(position.clamp(0.0, 1.0));
-        }
-      },
-      child: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: List.generate(_barCount, (index) {
-                final animationValue = _animationController.value;
-                final phase = index / _barCount;
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: List.generate(_barCount, (index) {
+              final animationValue = _animationController.value;
+              final phase = index / _barCount;
 
-                // Create wave animation
-                final waveOffset = math.sin(
-                  (animationValue * 2 * math.pi) + (phase * 4),
-                );
-                final animatedHeight = _barHeights[index] + (waveOffset * 0.15);
-                final finalHeight = animatedHeight.clamp(0.1, 1.0);
+              // Create wave animation
+              final waveOffset = math.sin(
+                (animationValue * 2 * math.pi) + (phase * 4),
+              );
+              final animatedHeight = _barHeights[index] + (waveOffset * 0.15);
+              final finalHeight = animatedHeight.clamp(0.1, 1.0);
 
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 100),
-                      height: 48 * finalHeight,
-                      decoration: BoxDecoration(
-                        color: widget.color.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 100),
+                    height: 48 * finalHeight,
+                    decoration: BoxDecoration(
+                      color: widget.color.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                );
-              }),
-            ),
-          );
-        },
-      ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 }

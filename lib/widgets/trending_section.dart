@@ -62,7 +62,7 @@ class TrendingSection extends StatelessWidget {
                     Text(
                       'Last updated ${_formatTimeAgo(lastUpdated!)}',
                       style: AppTypography.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -138,20 +138,20 @@ class TrendingSection extends StatelessWidget {
             Icon(
               Icons.wifi_off,
               size: 48,
-              color: theme.colorScheme.onSurface.withOpacity(0.3),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 12),
             Text(
               'Check your internet connection',
               style: AppTypography.bodyMedium.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 4),
             Text(
               'Connect to internet for recommendations',
               style: AppTypography.bodySmall.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.4),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
               ),
             ),
             if (onRetry != null) ...[
@@ -228,7 +228,7 @@ class _SongCard extends StatelessWidget {
             Text(
               song.artist,
               style: AppTypography.bodySmall.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -271,7 +271,7 @@ class _SongCard extends StatelessWidget {
 
   Widget _buildPlaceholder() {
     return Container(
-      color: AppColors.secondary.withOpacity(0.1),
+      color: AppColors.secondary.withValues(alpha: 0.1),
       child: Center(
         child: Icon(Icons.music_note, color: AppColors.secondary, size: 40),
       ),
@@ -296,7 +296,7 @@ class _SkeletonCard extends StatelessWidget {
             width: 140,
             height: 140,
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withValues(alpha: 0.2),
               borderRadius: AppRadius.large,
             ),
           ),
@@ -306,7 +306,7 @@ class _SkeletonCard extends StatelessWidget {
             width: 120,
             height: 14,
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -316,7 +316,7 @@ class _SkeletonCard extends StatelessWidget {
             width: 80,
             height: 12,
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(4),
             ),
           ),

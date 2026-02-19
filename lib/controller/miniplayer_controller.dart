@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
+import 'package:logging/logging.dart';
 
-/// Controller for managing miniplayer animations and gestures
-///
-/// Handles 3 states: minimized (0.0), expanded (1.0), queue (2.0)
-/// Provides smooth gesture recognition and physics-based animations
+final _log = Logger('MiniPlayerController');
+
 class MiniPlayerController extends ChangeNotifier {
   static final MiniPlayerController _instance =
       MiniPlayerController._internal();
@@ -12,53 +10,43 @@ class MiniPlayerController extends ChangeNotifier {
 
   MiniPlayerController._internal();
 
-  // Animation controller for state transitions
   AnimationController? _animationController;
-  TickerProvider? _tickerProvider;
 
-  // Current animation value (0.0 = mini, 1.0 = expanded, 2.0 = queue)
   double get animationValue => _animationController?.value ?? 0.0;
   Animation<double>? get animation => _animationController?.view;
 
-  // Gesture tracking
   bool _isDragging = false;
-  double _dragStartOffset = 0.0;
-  double _currentOffset = 0.0;
-  double _velocity = 0.0;
-  DateTime _lastDragTime = DateTime.now();
 
-  // Horizontal swipe tracking for track changes
-  double _horizontalDragOffset = 0.0;
-  double _horizontalVelocity = 0.0;
-  static const double _horizontalThreshold = 100.0;
-  static const double _velocityThreshold = 1000.0;
+  static const Curve _bouncingCurve = Cubic(0.175, 0.885, 0.32, 1.125);
+  double _offset = 0.0;
+  double _prevOffset = 0.0;
 
-  // State getters
+  static const double _headRoom = 50.0;
+  double _actuationOffset = 100.0;
+  double _deadSpace = 12.0;
+
+  bool bounceUp = false;
+  bool bounceDown = false;
+
   bool get isDragging => _isDragging;
   bool get isMinimized => animationValue < 0.5;
   bool get isExpanded => animationValue >= 0.5 && animationValue < 1.5;
   bool get isQueue => animationValue >= 1.5;
 
-  // Maximum offsets for calculations
   double _maxOffset = 0.0;
   double get maxOffset => _maxOffset;
 
-  // Queue scroll controller
   final ScrollController queueScrollController = ScrollController();
 
-  // Snap animation curve
-  static const Curve _snapCurve = Curves.fastOutSlowIn;
   static const Duration _snapDuration = Duration(milliseconds: 400);
 
-  /// Initialize the controller with a ticker provider
   void initialize(TickerProvider tickerProvider) {
-    _tickerProvider = tickerProvider;
     _animationController?.dispose();
     _animationController = AnimationController(
       vsync: tickerProvider,
       duration: _snapDuration,
-      lowerBound: 0.0,
-      upperBound: 2.0,
+      lowerBound: -0.2,
+      upperBound: 2.2,
       value: 0.0,
     );
 
@@ -67,194 +55,179 @@ class MiniPlayerController extends ChangeNotifier {
     });
   }
 
-  /// Set the maximum offset for calculations (usually screen height)
   void setMaxOffset(double offset) {
     _maxOffset = offset;
   }
 
-  // ==================== VERTICAL GESTURES (State Transitions) ====================
+  void updateBottomNavBarRelatedDimensions(bool hasBottomNav) {
+    if (hasBottomNav) {
+      _actuationOffset = 100.0;
+      _deadSpace = 12.0;
+    } else {
+      _actuationOffset = 60.0;
+      _deadSpace = 12.0;
+    }
+    _animationController?.reset();
+  }
 
-  /// Called when user starts dragging vertically
-  void onVerticalDragStart(DragStartDetails details) {
+  void onVerticalDragStart(DragStartDetails details, double maxOffset) {
+    // Check dead space - ignore gestures started too close to bottom edge
+    if (details.globalPosition.dy >= maxOffset - _deadSpace) {
+      _log.fine('onVerticalDragStart: ignored (in deadSpace)');
+      return;
+    }
+
+    _log.fine(
+      'onVerticalDragStart: _offset=$_offset, animationValue=$animationValue',
+    );
     _isDragging = true;
-    _dragStartOffset = _currentOffset;
-    _lastDragTime = DateTime.now();
+    _prevOffset = _offset;
+    bounceUp = false;
+    bounceDown = false;
     notifyListeners();
   }
 
-  /// Called during vertical drag
   void onVerticalDragUpdate(DragUpdateDetails details, double maxOffset) {
-    if (!_isDragging) return;
+    if (!_isDragging) {
+      _log.fine('onVerticalDragUpdate: ignored (not dragging)');
+      return;
+    }
 
     final delta = details.primaryDelta ?? 0.0;
-    final newTime = DateTime.now();
-    final timeDelta = newTime.difference(_lastDragTime).inMilliseconds;
+    _log.fine(
+      'onVerticalDragUpdate: delta=$delta, _offset=$_offset -> ${_offset - delta}',
+    );
 
-    // Calculate velocity
-    if (timeDelta > 0) {
-      _velocity = (delta / timeDelta) * 1000; // pixels per second
-    }
+    _offset -= delta;
+    _offset = _offset.clamp(-_headRoom, maxOffset * 2 + _headRoom / 2);
 
-    _lastDragTime = newTime;
-
-    // Update offset based on current state
-    if (isMinimized) {
-      // Dragging up from minimized: expand
-      _currentOffset = (_currentOffset - delta).clamp(0.0, maxOffset);
-      final progress = (_currentOffset / maxOffset).clamp(0.0, 1.0);
-      _animationController?.value = progress;
-    } else if (isExpanded && !isQueue) {
-      // Can go to queue or minimize
-      if (delta > 0) {
-        // Dragging down: minimize
-        _currentOffset = (_currentOffset - delta).clamp(0.0, maxOffset);
-        final progress = (_currentOffset / maxOffset).clamp(0.0, 1.0);
-        _animationController?.value = progress;
-      } else {
-        // Dragging up: go to queue
-        final queueProgress = (animationValue - 1.0) - (delta / maxOffset);
-        _animationController?.value = (1.0 + queueProgress).clamp(1.0, 2.0);
-      }
-    } else if (isQueue) {
-      // Dragging down from queue: back to expanded
-      final queueOffset = (animationValue - 1.0) * maxOffset;
-      final newQueueOffset = (queueOffset - delta).clamp(0.0, maxOffset);
-      _animationController?.value = 1.0 + (newQueueOffset / maxOffset);
-    }
+    final progress = (_offset / maxOffset).clamp(0.0, 2.0);
+    _animationController?.value = progress;
+    _log.fine(
+      'onVerticalDragUpdate: progress=$progress, animationValue=$animationValue',
+    );
 
     notifyListeners();
   }
 
-  /// Called when vertical drag ends - determine which state to snap to
   void onVerticalDragEnd(DragEndDetails details, double maxOffset) {
+    _log.fine(
+      'onVerticalDragEnd: _offset=$_offset, _prevOffset=$_prevOffset, animationValue=$animationValue',
+    );
     _isDragging = false;
 
-    final currentValue = animationValue;
     final velocity = details.primaryVelocity ?? 0.0;
+    final distance = _prevOffset - _offset;
+    const threshold = 500.0;
 
-    // Determine target state based on position and velocity
-    if (currentValue < 0.5) {
-      // Currently closer to minimized
-      if (velocity > _velocityThreshold || currentValue < 0.3) {
-        snapToMini();
+    _log.fine(
+      'onVerticalDragEnd: velocity=$velocity, distance=$distance, threshold=$threshold',
+    );
+
+    bool shouldSnapToExpanded = false;
+    bool shouldSnapToQueue = false;
+    bool shouldSnapToMini = false;
+
+    if (_prevOffset > maxOffset) {
+      _log.fine('onVerticalDragEnd: started from queue area');
+      if (velocity > threshold || distance > _actuationOffset) {
+        shouldSnapToExpanded = true;
       } else {
-        snapToExpanded();
+        shouldSnapToQueue = true;
       }
-    } else if (currentValue < 1.5) {
-      // Currently in expanded range
-      if (velocity > _velocityThreshold) {
-        snapToMini();
-      } else if (velocity < -_velocityThreshold) {
-        snapToQueue();
-      } else if (currentValue < 0.75) {
-        snapToMini();
-      } else if (currentValue > 1.25) {
-        snapToQueue();
+    } else if (_prevOffset > maxOffset / 2) {
+      _log.fine('onVerticalDragEnd: started from expanded area');
+      if (velocity > threshold || distance > _actuationOffset) {
+        shouldSnapToMini = true;
+      } else if (-velocity > threshold || -distance > _actuationOffset) {
+        shouldSnapToQueue = true;
       } else {
-        snapToExpanded();
+        shouldSnapToExpanded = true;
       }
     } else {
-      // Currently closer to queue
-      if (velocity < -_velocityThreshold || currentValue > 1.7) {
-        snapToQueue();
+      _log.fine('onVerticalDragEnd: started from mini area');
+      if (-velocity > threshold || -distance > _actuationOffset) {
+        shouldSnapToExpanded = true;
       } else {
-        snapToExpanded();
+        shouldSnapToMini = true;
       }
+    }
+
+    _log.fine(
+      'onVerticalDragEnd: snapToMini=$shouldSnapToMini, snapToExpanded=$shouldSnapToExpanded, snapToQueue=$shouldSnapToQueue',
+    );
+
+    if (shouldSnapToExpanded) {
+      snapToExpanded();
+    } else if (shouldSnapToMini) {
+      snapToMini();
+    } else if (shouldSnapToQueue) {
+      snapToQueue();
     }
 
     notifyListeners();
   }
 
-  // ==================== HORIZONTAL GESTURES (Track Navigation) ====================
-
-  /// Called when horizontal drag starts (for track switching)
-  void onHorizontalDragStart(DragStartDetails details) {
-    _horizontalDragOffset = 0.0;
-    _horizontalVelocity = 0.0;
-  }
-
-  /// Called during horizontal drag
-  void onHorizontalDragUpdate(DragUpdateDetails details) {
-    final delta = details.primaryDelta ?? 0.0;
-    _horizontalDragOffset += delta;
-
-    // Calculate velocity
-    _horizontalVelocity = delta * 10; // simplified velocity calculation
-  }
-
-  /// Called when horizontal drag ends - determine if we should switch tracks
-  /// Returns: true = next track, false = previous track, null = stay on current
-  bool? onHorizontalDragEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0.0;
-    final distance = _horizontalDragOffset.abs();
-
-    // Check if we should go to next or previous track
-    if (velocity < -_velocityThreshold ||
-        (velocity < 0 && distance > _horizontalThreshold)) {
-      // Swiped left (negative velocity) - go to next
-      return true; // Signal to go to next track
-    } else if (velocity > _velocityThreshold ||
-        (velocity > 0 && distance > _horizontalThreshold)) {
-      // Swiped right (positive velocity) - go to previous
-      return false; // Signal to go to previous track
-    }
-
-    // Not enough velocity or distance - stay on current track
-    return null;
-  }
-
-  // ==================== SNAP FUNCTIONS ====================
-
-  /// Snap to minimized state
   Future<void> snapToMini() async {
     if (_animationController == null) return;
 
-    _currentOffset = 0.0;
+    _log.info('snapToMini: starting');
+    _offset = 0.0;
+    if (_prevOffset < _maxOffset) bounceUp = true;
+    if (_prevOffset > _maxOffset) bounceDown = true;
+
     await _animationController!.animateTo(
       0.0,
       duration: _snapDuration,
-      curve: _snapCurve,
+      curve: _bouncingCurve,
     );
+    bounceUp = false;
+    bounceDown = false;
+    _log.info('snapToMini: complete');
     notifyListeners();
   }
 
-  /// Snap to expanded state
   Future<void> snapToExpanded() async {
     if (_animationController == null) return;
 
-    _currentOffset = _maxOffset;
+    _log.info('snapToExpanded: starting');
+    _offset = _maxOffset;
+    if (_prevOffset < _maxOffset) bounceUp = true;
+    if (_prevOffset > _maxOffset) bounceDown = true;
+
     await _animationController!.animateTo(
       1.0,
       duration: _snapDuration,
-      curve: _snapCurve,
+      curve: Curves.fastEaseInToSlowEaseOut,
     );
+    bounceUp = false;
+    bounceDown = false;
+    _log.info('snapToExpanded: complete');
     notifyListeners();
   }
 
-  /// Snap to queue state
   Future<void> snapToQueue() async {
     if (_animationController == null) return;
 
-    _currentOffset = _maxOffset * 2;
+    _log.info('snapToQueue: starting');
+    _offset = _maxOffset * 2;
+    bounceUp = false;
+    bounceDown = false;
+
     await _animationController!.animateTo(
       2.0,
       duration: _snapDuration,
-      curve: _snapCurve,
+      curve: Curves.easeOutCubic,
     );
 
-    // Auto-scroll to current track
     animateQueueToCurrentTrack();
+    _log.info('snapToQueue: complete');
     notifyListeners();
   }
 
-  // ==================== QUEUE SCROLLING ====================
-
-  /// Animate queue scroll to show current track
   void animateQueueToCurrentTrack({bool jump = false}) {
     if (!queueScrollController.hasClients) return;
 
-    // This will be called with the actual current index from AudioPlayerService
-    // For now, just scroll to top as placeholder
     if (jump) {
       queueScrollController.jumpTo(0);
     } else {
@@ -266,7 +239,6 @@ class MiniPlayerController extends ChangeNotifier {
     }
   }
 
-  /// Scroll queue to specific index
   void scrollQueueToIndex(int index, double itemExtent) {
     if (!queueScrollController.hasClients) return;
 
@@ -281,16 +253,12 @@ class MiniPlayerController extends ChangeNotifier {
     );
   }
 
-  // ==================== TAP HANDLERS ====================
-
-  /// Handle tap on miniplayer - expand if minimized
   void onMiniPlayerTap() {
     if (isMinimized) {
       snapToExpanded();
     }
   }
 
-  /// Handle tap on minimize button
   void onMinimizeButtonTap() {
     if (isQueue) {
       snapToExpanded();
@@ -299,7 +267,6 @@ class MiniPlayerController extends ChangeNotifier {
     }
   }
 
-  /// Handle tap on queue button
   void onQueueButtonTap() {
     if (isQueue) {
       snapToExpanded();
@@ -308,19 +275,14 @@ class MiniPlayerController extends ChangeNotifier {
     }
   }
 
-  // ==================== UTILITY METHODS ====================
-
-  /// Reset to minimized state immediately (no animation)
   void resetToMini() {
     _animationController?.value = 0.0;
-    _currentOffset = 0.0;
+    _offset = 0.0;
     notifyListeners();
   }
 
-  /// Check if we can handle a tap (not during drag)
   bool get canHandleTap => !_isDragging;
 
-  /// Get progress for various animations (0.0 to 1.0)
   double get expandedProgress {
     final val = animationValue;
     if (val <= 0.0) return 0.0;
@@ -328,7 +290,6 @@ class MiniPlayerController extends ChangeNotifier {
     return val;
   }
 
-  /// Get queue progress (0.0 to 1.0, only valid when expanded or beyond)
   double get queueProgress {
     final val = animationValue;
     if (val <= 1.0) return 0.0;

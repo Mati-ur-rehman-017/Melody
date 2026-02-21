@@ -194,7 +194,9 @@ class _SleepTimerDialogState extends State<SleepTimerDialog>
                       icon: const Icon(Icons.cancel_outlined),
                       label: const Text('Cancel Timer'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                        backgroundColor: AppColors.primary.withValues(
+                          alpha: 0.1,
+                        ),
                         foregroundColor: AppColors.primary,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 16),

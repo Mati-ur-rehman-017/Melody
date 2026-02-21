@@ -62,7 +62,9 @@ class TrendingSection extends StatelessWidget {
                     Text(
                       'Last updated ${_formatTimeAgo(lastUpdated!)}',
                       style: AppTypography.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ],

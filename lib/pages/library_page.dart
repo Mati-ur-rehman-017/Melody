@@ -12,6 +12,7 @@ import '../services/audio_player_service.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_to_playlist_dialog.dart';
+import '../widgets/create_playlist_dialog.dart';
 import 'playlist_detail_page.dart';
 
 final Logger _log = Logger('LibraryPage');
@@ -304,6 +305,17 @@ class _LibraryPageState extends State<LibraryPage>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Playlist updated')));
+    }
+  }
+
+  Future<void> _createPlaylist() async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => const CreatePlaylistDialog(),
+    );
+    if (name != null) {
+      await _dbService.createPlaylist(name);
+      await _loadPlaylists();
     }
   }
 
@@ -858,42 +870,20 @@ class _LibraryPageState extends State<LibraryPage>
     }
 
     if (_playlists.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.queue_music,
-              size: 64,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No playlists yet',
-              style: AppTypography.heading3.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create a playlist to organize your songs',
-              style: AppTypography.bodyMedium.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
+      return _buildCreatePlaylistCard();
     }
 
     return RefreshIndicator(
       onRefresh: _loadPlaylists,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
-        itemCount: _playlists.length,
+        itemCount: _playlists.length + 1,
         itemBuilder: (context, index) {
-          final playlist = _playlists[index];
+          if (index == 0) {
+            return _buildCreatePlaylistCard();
+          }
+
+          final playlist = _playlists[index - 1];
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -968,6 +958,53 @@ class _LibraryPageState extends State<LibraryPage>
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildCreatePlaylistCard() {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: AppRadius.large,
+        boxShadow: AppShadows.bubbly,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: AppRadius.large,
+        child: InkWell(
+          borderRadius: AppRadius.large,
+          onTap: _createPlaylist,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: AppRadius.medium,
+                  ),
+                  child: Icon(Icons.add, color: AppColors.primary, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'Create Playlist',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

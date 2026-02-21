@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
@@ -5,21 +8,39 @@ import 'package:logging/logging.dart';
 import 'pages/discover_page.dart';
 import 'pages/library_page.dart';
 import 'services/database_service.dart';
+import 'services/media_notification_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/mini_player.dart';
 
+MediaNotificationService? mediaNotificationService;
+
 void main() async {
-  // Ensure Flutter bindings are initialized before async operations
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize MediaKit for Linux/Windows desktop audio support
   JustAudioMediaKit.ensureInitialized();
 
-  // Initialize logging
   _setupLogging();
 
-  // Initialize database
   await DatabaseService.instance.initialize();
+
+  if (Platform.isAndroid || Platform.isIOS) {
+    try {
+      debugPrint('[INFO] Initializing AudioService...');
+      mediaNotificationService = await AudioService.init(
+        builder: () => MediaNotificationService(),
+        config: const AudioServiceConfig(
+          androidNotificationChannelId: 'com.melody.app.audio',
+          androidNotificationChannelName: 'Audio Playback',
+          androidNotificationOngoing: true,
+          androidStopForegroundOnPause: true,
+        ),
+      ).timeout(const Duration(seconds: 10));
+      debugPrint('[INFO] AudioService initialized successfully');
+    } catch (e, stack) {
+      debugPrint('[ERROR] Failed to initialize AudioService: $e');
+      debugPrint('[ERROR] Stack: $stack');
+    }
+  }
 
   runApp(const MelodyApp());
 }

@@ -44,6 +44,7 @@ dependencies:
   just_audio: ^0.9.36
   just_audio_media_kit: ^2.1.0  # Linux/Windows desktop support
   media_kit_libs_linux: any     # Native libraries for Linux
+  audio_service: ^0.18.12       # Media notification controls
 
   # Database
   sqflite: ^2.3.0

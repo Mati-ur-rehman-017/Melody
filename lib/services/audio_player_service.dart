@@ -63,6 +63,8 @@ class AudioPlayerService {
       StreamController<bool>.broadcast();
   final StreamController<double> _speedController =
       StreamController<double>.broadcast();
+  final StreamController<Track?> _playingTrackController =
+      StreamController<Track?>.broadcast();
 
   // Sleep timer
   Timer? _sleepTimer;
@@ -133,6 +135,9 @@ class AudioPlayerService {
 
   /// Stream of playback speed changes
   Stream<double> get speedStream => _speedController.stream;
+
+  /// Stream of currently playing track changes (for notification service)
+  Stream<Track?> get playingTrackStream => _playingTrackController.stream;
 
   /// Current playback position
   Duration get position => _player.position;
@@ -232,6 +237,8 @@ class AudioPlayerService {
     _currentIndexController.add(_currentIndex);
 
     final track = _queue[index];
+    _playingTrackController.add(track);
+
     final fullPath = await DatabaseService.getAudioFilePath(
       track.filePath.replaceFirst('audio/', ''),
     );
@@ -379,6 +386,7 @@ class AudioPlayerService {
     _log.fine('Stopping playback');
     await _player.stop();
     _currentTrack = null;
+    _playingTrackController.add(null);
   }
 
   /// Seek to a specific position
@@ -617,6 +625,7 @@ class AudioPlayerService {
     await _currentIndexController.close();
     await _shuffleController.close();
     await _speedController.close();
+    await _playingTrackController.close();
     await _player.dispose();
   }
 }

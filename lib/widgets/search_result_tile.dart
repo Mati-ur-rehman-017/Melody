@@ -200,6 +200,7 @@ class SearchResultTile extends StatelessWidget {
                 value: downloadProgress,
                 strokeWidth: 3,
                 backgroundColor: Colors.grey[300],
+                color: Colors.green,
               ),
               if (downloadProgress != null)
                 Text(

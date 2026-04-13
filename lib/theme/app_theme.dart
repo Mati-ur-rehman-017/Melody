@@ -333,6 +333,97 @@ class AppTypography {
 
 /// Main application theme - Dark only
 class AppTheme {
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.fallbackPrimary,
+        brightness: Brightness.light,
+        primary: AppColors.fallbackPrimary,
+        secondary: AppColors.fallbackAccent,
+        surface: const Color(0xFFF8F7F4),
+        onSurface: const Color(0xFF1F1F1F),
+      ),
+      scaffoldBackgroundColor: const Color(0xFFF8F7F4),
+      fontFamily: AppTypography.fontFamily,
+      textTheme: TextTheme(
+        displayLarge: AppTypography.displayLarge.copyWith(
+          color: const Color(0xFF1F1F1F),
+        ),
+        displayMedium: AppTypography.displayMedium.copyWith(
+          color: const Color(0xFF1F1F1F),
+        ),
+        headlineLarge: AppTypography.heading1.copyWith(
+          color: const Color(0xFF1F1F1F),
+        ),
+        headlineMedium: AppTypography.heading2.copyWith(
+          color: const Color(0xFF1F1F1F),
+        ),
+        headlineSmall: AppTypography.heading3.copyWith(
+          color: const Color(0xFF1F1F1F),
+        ),
+        bodyLarge: AppTypography.bodyLarge.copyWith(
+          color: const Color(0xFF1F1F1F),
+        ),
+        bodyMedium: AppTypography.bodyMedium.copyWith(
+          color: const Color(0xFF1F1F1F),
+        ),
+        bodySmall: AppTypography.bodySmall.copyWith(
+          color: const Color(0xFF555555),
+        ),
+        labelLarge: AppTypography.labelLarge.copyWith(
+          color: const Color(0xFF1F1F1F),
+        ),
+        labelMedium: AppTypography.labelMedium.copyWith(
+          color: const Color(0xFF555555),
+        ),
+        labelSmall: AppTypography.labelSmall.copyWith(
+          color: const Color(0xFF777777),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.large),
+        color: Colors.white,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: AppRadius.medium,
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppRadius.medium,
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppRadius.medium,
+          borderSide: BorderSide(color: AppColors.fallbackPrimary, width: 1),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.fallbackPrimary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.medium),
+          textStyle: AppTypography.button,
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: AppColors.fallbackPrimary,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: const CircleBorder(),
+      ),
+      iconTheme: const IconThemeData(color: Color(0xFF1F1F1F), size: 24),
+    );
+  }
+
+  static ThemeData get darkTheme => theme;
+
   static ThemeData get theme {
     return ThemeData(
       useMaterial3: true,

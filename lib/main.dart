@@ -6,10 +6,15 @@ import 'pages/discover_page.dart';
 import 'pages/library_page.dart';
 import 'pages/splash_page.dart';
 import 'services/media_notification_service.dart';
+import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/mini_player.dart';
 
 MediaNotificationService? mediaNotificationService;
+final ThemeService _themeService = ThemeService();
+final ValueNotifier<ThemeMode> themeModeNotifier = ValueNotifier(
+  ThemeMode.dark,
+);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +22,14 @@ void main() async {
   JustAudioMediaKit.ensureInitialized();
 
   _setupLogging();
+  await _loadThemePreference();
 
   runApp(const MelodyApp());
+}
+
+Future<void> _loadThemePreference() async {
+  final isDarkMode = await _themeService.loadThemePreference();
+  themeModeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
 }
 
 /// Setup logging for debug output
@@ -37,11 +48,18 @@ class MelodyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Melody',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
-      home: const SplashPage(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeModeNotifier,
+      builder: (context, themeMode, child) {
+        return MaterialApp(
+          title: 'Melody',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+          home: const SplashPage(),
+        );
+      },
     );
   }
 }
@@ -88,6 +106,13 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  Future<void> _toggleTheme() async {
+    final isDarkMode = themeModeNotifier.value == ThemeMode.dark;
+    final nextMode = isDarkMode ? ThemeMode.light : ThemeMode.dark;
+    themeModeNotifier.value = nextMode;
+    await _themeService.saveThemePreference(nextMode == ThemeMode.dark);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,7 +138,22 @@ class _MainShellState extends State<MainShell> {
             bottom: 32,
             left: 24,
             right: 24,
-            child: _buildFloatingNavigation(),
+            child: ValueListenableBuilder<ThemeMode>(
+              valueListenable: themeModeNotifier,
+              builder: (context, themeMode, child) {
+                return _buildFloatingNavigation(themeMode);
+              },
+            ),
+          ),
+
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16, right: 16),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: _buildThemeToggle(),
+              ),
+            ),
           ),
         ],
       ),
@@ -121,11 +161,15 @@ class _MainShellState extends State<MainShell> {
   }
 
   /// Build floating pill navigation bar
-  Widget _buildFloatingNavigation() {
+  Widget _buildFloatingNavigation(ThemeMode themeMode) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDarkMode = themeMode == ThemeMode.dark;
+
     return Container(
+      key: const ValueKey('floating-navigation'),
       height: 64,
       decoration: BoxDecoration(
-        color: AppColors.secondary,
+        color: isDarkMode ? colorScheme.surfaceContainerHighest : Colors.white,
         borderRadius: AppRadius.circular,
         boxShadow: AppShadows.navigation,
       ),
@@ -162,6 +206,8 @@ class _MainShellState extends State<MainShell> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -179,7 +225,9 @@ class _MainShellState extends State<MainShell> {
                 duration: const Duration(milliseconds: 200),
                 child: Icon(
                   icon,
-                  color: isSelected ? AppColors.primary : Colors.white54,
+                  color: isSelected
+                      ? AppColors.fallbackPrimary
+                      : colorScheme.onSurface.withValues(alpha: 0.6),
                   size: 24,
                 ),
               ),
@@ -188,12 +236,34 @@ class _MainShellState extends State<MainShell> {
                 Text(
                   label,
                   style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.primary,
+                    color: AppColors.fallbackPrimary,
                   ),
                 ),
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeToggle() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: _toggleTheme,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          shape: BoxShape.circle,
+          boxShadow: AppShadows.card,
+        ),
+        child: Icon(
+          isDarkMode ? Icons.light_mode : Icons.dark_mode,
+          color: Theme.of(context).colorScheme.onSurface,
+          size: 18,
         ),
       ),
     );

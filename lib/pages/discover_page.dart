@@ -28,7 +28,7 @@ class DiscoverPage extends StatefulWidget {
 }
 
 class _DiscoverPageState extends State<DiscoverPage>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   final _downloadService = YouTubeDownloadService();
@@ -48,6 +48,8 @@ class _DiscoverPageState extends State<DiscoverPage>
 
   // Debounce timer for live search
   Timer? _debounceTimer;
+  late final AnimationController _suggestionsRotationController;
+  late final Animation<double> _suggestionsTurns;
 
   // Download tracking
   Set<String> _downloadedIds = {};
@@ -67,6 +69,16 @@ class _DiscoverPageState extends State<DiscoverPage>
   @override
   void initState() {
     super.initState();
+    _suggestionsRotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+    _suggestionsTurns = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _suggestionsRotationController,
+        curve: Curves.linear,
+      ),
+    );
     _loadDownloadedIds();
     _scrollController.addListener(_onScroll);
     _loadTrendingSongs();
@@ -80,6 +92,7 @@ class _DiscoverPageState extends State<DiscoverPage>
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _suggestionsRotationController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     _downloadService.dispose();
@@ -381,17 +394,22 @@ class _DiscoverPageState extends State<DiscoverPage>
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          // App name
-          Text(
-            'Melody',
-            style: AppTypography.displayMedium.copyWith(
-              color: theme.colorScheme.onSurface,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeInOut,
+        opacity: _isLoadingTrending ? 0.82 : 1.0,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            // App name
+            Text(
+              'Melody',
+              style: AppTypography.displayMedium.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -440,7 +458,16 @@ class _DiscoverPageState extends State<DiscoverPage>
                       color: AppColors.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.tune, size: 16, color: AppColors.primary),
+                    child: RotationTransition(
+                      turns: _isLoadingSuggestions
+                          ? _suggestionsTurns
+                          : const AlwaysStoppedAnimation<double>(0),
+                      child: Icon(
+                        Icons.tune,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
@@ -637,52 +664,59 @@ class _DiscoverPageState extends State<DiscoverPage>
   Widget _buildSuggestionsSliver() {
     final theme = Theme.of(context);
     return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-            child: Row(
-              children: [
-                Text(
-                  'Suggestions',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-                if (_isLoadingSuggestions) ...[
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeInOut,
+        opacity: _suggestions.isNotEmpty ? 1.0 : 0.45,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Suggestions',
+                    style: AppTypography.labelLarge.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
+                  if (_isLoadingSuggestions) ...[
+                    const SizedBox(width: 8),
+                    RotationTransition(
+                      turns: _suggestionsTurns,
+                      child: Icon(
+                        Icons.autorenew,
+                        size: 14,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.7,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          ),
-
-          // Suggestion items
-          ..._suggestions.map(
-            (suggestion) => ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-              leading: Icon(
-                Icons.search,
-                size: 20,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
-              title: Text(suggestion, style: AppTypography.bodyMedium),
-              onTap: () => _onSuggestionTap(suggestion),
             ),
-          ),
 
-          const Divider(indent: 24, endIndent: 24),
-        ],
+            // Suggestion items
+            ..._suggestions.map(
+              (suggestion) => ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                leading: Icon(
+                  Icons.search,
+                  size: 20,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+                title: Text(suggestion, style: AppTypography.bodyMedium),
+                onTap: () => _onSuggestionTap(suggestion),
+              ),
+            ),
+
+            const Divider(indent: 24, endIndent: 24),
+          ],
+        ),
       ),
     );
   }

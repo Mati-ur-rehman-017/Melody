@@ -49,10 +49,19 @@ class _LibraryPageState extends State<LibraryPage>
   String? _playlistsErrorMessage;
 
   StreamSubscription<void>? _tracksChangedSubscription;
+  late final AnimationController _tabPulseController;
+  late final Animation<double> _tabScaleAnimation;
 
   @override
   void initState() {
     super.initState();
+    _tabPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _tabScaleAnimation = Tween<double>(begin: 0.98, end: 1.02).animate(
+      CurvedAnimation(parent: _tabPulseController, curve: Curves.easeInOut),
+    );
     _loadTracks();
     _loadPlaylists();
 
@@ -69,6 +78,7 @@ class _LibraryPageState extends State<LibraryPage>
   @override
   void dispose() {
     _tracksChangedSubscription?.cancel();
+    _tabPulseController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -391,80 +401,107 @@ class _LibraryPageState extends State<LibraryPage>
   /// Build pill-style tabs
   Widget _buildPillTabs() {
     final theme = Theme.of(context);
+    const horizontalPadding = 24.0;
+    const innerPadding = 4.0;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 8,
+      ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.all(innerPadding),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,
           borderRadius: AppRadius.circular,
+          boxShadow: _activeTab == 'songs'
+              ? AppShadows.card
+              : AppShadows.bubbly,
         ),
-        child: Row(
-          children: [
-            // All Songs tab
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _activeTab = 'songs'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _activeTab == 'songs'
-                        ? theme.colorScheme.surfaceContainerHighest
-                        : Colors.transparent,
-                    borderRadius: AppRadius.circular,
-                    boxShadow: _activeTab == 'songs' ? AppShadows.card : null,
-                  ),
-                  child: Text(
-                    'All Songs',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.labelLarge.copyWith(
-                      color: _activeTab == 'songs'
-                          ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      fontWeight: _activeTab == 'songs'
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final indicatorWidth =
+                (constraints.maxWidth - innerPadding * 2) / 2;
+            final indicatorLeft = _activeTab == 'songs' ? 0.0 : indicatorWidth;
 
-            // Playlists tab
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _activeTab = 'playlists'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _activeTab == 'playlists'
-                        ? theme.colorScheme.surfaceContainerHighest
-                        : Colors.transparent,
-                    borderRadius: AppRadius.circular,
-                    boxShadow: _activeTab == 'playlists'
-                        ? AppShadows.card
-                        : null,
-                  ),
-                  child: Text(
-                    'Playlists',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.labelLarge.copyWith(
-                      color: _activeTab == 'playlists'
-                          ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      fontWeight: _activeTab == 'playlists'
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+            return Stack(
+              children: [
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeInOut,
+                  left: indicatorLeft,
+                  top: 0,
+                  bottom: 0,
+                  width: indicatorWidth,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: AppRadius.circular,
+                      boxShadow: AppShadows.card,
                     ),
                   ),
                 ),
-              ),
-            ),
-          ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _activeTab = 'songs'),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          alignment: Alignment.center,
+                          child: _buildTabLabel(
+                            'All Songs',
+                            _activeTab == 'songs',
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _activeTab = 'playlists'),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          alignment: Alignment.center,
+                          child: _buildTabLabel(
+                            'Playlists',
+                            _activeTab == 'playlists',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
+  }
+
+  Widget _buildTabLabel(String label, bool isActive) {
+    final theme = Theme.of(context);
+    final labelWidget = AnimatedDefaultTextStyle(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+      style: AppTypography.labelLarge.copyWith(
+        color: isActive
+            ? theme.colorScheme.onSurface
+            : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+      ),
+      child: Text(label, textAlign: TextAlign.center),
+    );
+
+    if (!isActive) {
+      return labelWidget;
+    }
+
+    return ScaleTransition(scale: _tabScaleAnimation, child: labelWidget);
   }
 
   /// Build songs tab with featured tracks and jump back in

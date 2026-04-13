@@ -2,10 +2,9 @@ import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:logging/logging.dart';
 
-import '../main.dart' show mediaNotificationService;
+import '../main.dart' show MainShell, mediaNotificationService;
 import '../services/database_service.dart';
 import '../services/media_notification_service.dart';
 import '../theme/app_theme.dart';
@@ -16,7 +15,7 @@ final Logger _log = Logger('SplashPage');
 ///
 /// Displays "Melody" with a glow/pulse animation while async initialization
 /// runs concurrently. Navigates to [MainShell] once both the minimum
-/// display duration (2500ms) and initialization are complete.
+/// display duration (2500 ms) and initialization are complete.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -24,14 +23,39 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> {
+class _SplashPageState extends State<SplashPage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animationController;
+  late final Animation<double> _logoOpacity;
+  late final Animation<double> _logoScale;
+
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+
+    _logoOpacity = Tween<double>(begin: 0.72, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _logoScale = Tween<double>(begin: 0.985, end: 1.015).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _runSplashSequence();
   }
 
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
   Future<void> _runSplashSequence() async {
+    await WidgetsBinding.instance.endOfFrame;
+
     // Run initialization and minimum display duration concurrently
     await Future.wait([
       _initialize(),
@@ -74,7 +98,7 @@ class _SplashPageState extends State<SplashPage> {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const _MainShellPlaceholder(),
+            const MainShell(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -87,50 +111,34 @@ class _SplashPageState extends State<SplashPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: const Center(child: _GlowText()),
+      body: Center(
+        child: _GlowText(opacity: _logoOpacity, scale: _logoScale),
+      ),
     );
   }
 }
 
-/// The "Melody" text with the three-phase glow/pulse animation.
+/// The "Melody" text with smooth breathing animation.
 class _GlowText extends StatelessWidget {
-  const _GlowText();
+  const _GlowText({required this.opacity, required this.scale});
+
+  final Animation<double> opacity;
+  final Animation<double> scale;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
+    return FadeTransition(
+      opacity: opacity,
+      child: ScaleTransition(
+        scale: scale,
+        child: Text(
           'Melody',
           style: AppTypography.displayLarge.copyWith(
             fontSize: 42,
             color: Colors.white,
           ),
-        )
-        // Phase 1: fade in (0–800ms)
-        .animate()
-        .fadeIn(duration: 800.ms, curve: Curves.easeOut)
-        // Phase 2: glow shimmer pulse ×2 (800ms–2200ms)
-        .shimmer(
-          delay: 800.ms,
-          duration: 700.ms,
-          color: Colors.white.withValues(alpha: 0.5),
-        )
-        .shimmer(
-          delay: 1450.ms,
-          duration: 700.ms,
-          color: Colors.white.withValues(alpha: 0.5),
-        )
-        // Phase 3: settle — slight fade on glow to clean white (implicit via shimmer end)
-        .then(delay: 2200.ms);
-  }
-}
-
-// Temporary placeholder — replaced in Task 2 after main.dart is updated.
-// This avoids a circular dependency during this task.
-class _MainShellPlaceholder extends StatelessWidget {
-  const _MainShellPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(backgroundColor: Color(0xFF000000));
+        ),
+      ),
+    );
   }
 }

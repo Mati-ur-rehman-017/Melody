@@ -3,11 +3,14 @@ import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:logging/logging.dart';
 
 import '../main.dart' show mediaNotificationService;
 import '../services/database_service.dart';
 import '../services/media_notification_service.dart';
 import '../theme/app_theme.dart';
+
+final Logger _log = Logger('SplashPage');
 
 /// Animated splash screen shown on app launch.
 ///
@@ -43,13 +46,13 @@ class _SplashPageState extends State<SplashPage> {
     try {
       await DatabaseService.instance.initialize();
     } catch (e, stack) {
-      debugPrint('[ERROR] Failed to initialize database: $e');
-      debugPrint('[ERROR] Stack: $stack');
+      _log.severe('Failed to initialize database: $e');
+      _log.fine('Stack: $stack');
     }
 
     if (Platform.isAndroid || Platform.isIOS) {
       try {
-        debugPrint('[INFO] Initializing AudioService...');
+        _log.info('Initializing AudioService...');
         mediaNotificationService = await AudioService.init(
           builder: () => MediaNotificationService(),
           config: const AudioServiceConfig(
@@ -59,10 +62,10 @@ class _SplashPageState extends State<SplashPage> {
             androidStopForegroundOnPause: true,
           ),
         ).timeout(const Duration(seconds: 10));
-        debugPrint('[INFO] AudioService initialized successfully');
+        _log.info('AudioService initialized successfully');
       } catch (e, stack) {
-        debugPrint('[ERROR] Failed to initialize AudioService: $e');
-        debugPrint('[ERROR] Stack: $stack');
+        _log.severe('Failed to initialize AudioService: $e');
+        _log.fine('Stack: $stack');
       }
     }
   }
@@ -97,9 +100,7 @@ class _GlowText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
           'Melody',
-          style: const TextStyle(
-            fontFamily: AppTypography.fontFamily,
-            fontWeight: FontWeight.w700,
+          style: AppTypography.displayLarge.copyWith(
             fontSize: 42,
             color: Colors.white,
           ),
@@ -111,12 +112,12 @@ class _GlowText extends StatelessWidget {
         .shimmer(
           delay: 800.ms,
           duration: 700.ms,
-          color: Colors.white.withAlpha(128),
+          color: Colors.white.withValues(alpha: 0.5),
         )
         .shimmer(
           delay: 1450.ms,
           duration: 700.ms,
-          color: Colors.white.withAlpha(128),
+          color: Colors.white.withValues(alpha: 0.5),
         )
         // Phase 3: settle — slight fade on glow to clean white (implicit via shimmer end)
         .then(delay: 2200.ms);

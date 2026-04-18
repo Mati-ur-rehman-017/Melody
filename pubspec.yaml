@@ -102,23 +102,14 @@ flutter:
 
   # Fonts
   fonts:
-    - family: Plus Jakarta Sans
+    - family: LexendDeca
       fonts:
-        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
-          weight: 400
-    - family: Plus Jakarta Sans
-      fonts:
-        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
-          weight: 500
-    - family: Plus Jakarta Sans
-      fonts:
-        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
-          weight: 600
-    - family: Plus Jakarta Sans
-      fonts:
-        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
-          weight: 700
-    - family: Plus Jakarta Sans
-      fonts:
-        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
-          weight: 800
+        - asset: assets/fonts/LexendDeca/LexendDeca-Black.ttf
+        - asset: assets/fonts/LexendDeca/LexendDeca-Bold.ttf
+        - asset: assets/fonts/LexendDeca/LexendDeca-ExtraBold.ttf
+        - asset: assets/fonts/LexendDeca/LexendDeca-ExtraLight.ttf
+        - asset: assets/fonts/LexendDeca/LexendDeca-Light.ttf
+        - asset: assets/fonts/LexendDeca/LexendDeca-Medium.ttf
+        - asset: assets/fonts/LexendDeca/LexendDeca-Regular.ttf
+        - asset: assets/fonts/LexendDeca/LexendDeca-SemiBold.ttf
+        - asset: assets/fonts/LexendDeca/LexendDeca-Thin.ttf

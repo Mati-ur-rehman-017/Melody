@@ -231,7 +231,7 @@ class AppRadius {
 
 /// Typography system
 class AppTypography {
-  static const String fontFamily = 'Plus Jakarta Sans';
+  static const String fontFamily = 'LexendDeca';
 
   // Font Weights
   static const FontWeight regular = FontWeight.w400;

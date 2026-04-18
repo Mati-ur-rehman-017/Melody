@@ -1,18 +1,3 @@
-/// Categories for the Discover screen
-class Category {
-  final String id;
-  final String name;
-  final String icon;
-  final int colorValue;
-
-  const Category({
-    required this.id,
-    required this.name,
-    required this.icon,
-    required this.colorValue,
-  });
-}
-
 /// Recommended track for the Discover screen
 class RecommendedTrack {
   final String id;
@@ -76,40 +61,6 @@ class PlaylistPreview {
 
 /// App constants matching the React reference
 class AppConstants {
-  // Category data - Music genres
-  static const List<Category> categories = [
-    Category(
-      id: '1',
-      name: 'Pop',
-      icon: 'music_note',
-      colorValue: 0xFFE67E5F, // Primary - Terracotta
-    ),
-    Category(
-      id: '2',
-      name: 'Rock',
-      icon: 'electric_bolt',
-      colorValue: 0xFFF4C430, // Accent - Mustard
-    ),
-    Category(
-      id: '3',
-      name: 'Jazz',
-      icon: 'piano',
-      colorValue: 0xFF60A5FA, // Blue
-    ),
-    Category(
-      id: '4',
-      name: 'Electronic',
-      icon: 'graphic_eq',
-      colorValue: 0xFF22C55E, // Green
-    ),
-    Category(
-      id: '5',
-      name: 'Classical',
-      icon: 'piano',
-      colorValue: 0xFFA855F7, // Purple
-    ),
-  ];
-
   // Recommended tracks data - Modern music playlists
   static const List<RecommendedTrack> recommendedTracks = [
     RecommendedTrack(

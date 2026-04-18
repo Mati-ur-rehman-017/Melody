@@ -55,14 +55,6 @@ class AppColors {
   static Color get textLight => textPrimary;
   static Color get shadowColor => Colors.black;
 
-  // Category colors for backward compatibility
-  static Color get categoryTouching => primary;
-  static Color get categoryListening =>
-      const Color(0xFF1DB954); // Spotify green
-  static Color get categorySpeaking => const Color(0xFF1E90FF); // Blue
-  static Color get categoryVisual => const Color(0xFFFF6B6B); // Red
-  static Color get categoryFocus => const Color(0xFF9B59B6); // Purple
-
   // Track backgrounds (now all dark)
   static Color get trackBg1 => surface;
   static Color get trackBg2 => surfaceHighlight;

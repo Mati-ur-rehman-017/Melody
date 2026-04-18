@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
-import '../constants.dart';
 import '../models/trending_song.dart';
 import '../services/database_service.dart';
 import '../services/trending_service.dart';
@@ -489,7 +488,7 @@ class _DiscoverPageState extends State<DiscoverPage>
     );
   }
 
-  /// Build discover content (categories + trending)
+  /// Build discover content (trending only)
   Widget _buildDiscoverContent() {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -497,9 +496,6 @@ class _DiscoverPageState extends State<DiscoverPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Categories section
-          _buildCategoriesSection(),
-
           // Trending Now section
           TrendingSection(
             title: 'Trending Now',
@@ -530,119 +526,6 @@ class _DiscoverPageState extends State<DiscoverPage>
         ],
       ),
     );
-  }
-
-  /// Build categories horizontal scroll
-  Widget _buildCategoriesSection() {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Categories',
-                style: AppTypography.heading2.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: Text(
-                  'See all',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Categories row - equally spaced
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: AppConstants.categories.map((category) {
-              return Expanded(child: _buildCategoryItem(category));
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Build individual category item
-  Widget _buildCategoryItem(Category category) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: () => _onCategoryTap(category.name),
-      child: Column(
-        children: [
-          // Category icon bubble
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              shape: BoxShape.circle,
-              boxShadow: AppShadows.bubbly,
-            ),
-            child: Icon(
-              _getCategoryIcon(category.icon),
-              color: Color(category.colorValue),
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Category name
-          Text(
-            category.name,
-            style: AppTypography.labelMedium.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Get Flutter icon from string name
-  IconData _getCategoryIcon(String iconName) {
-    switch (iconName) {
-      case 'music_note':
-        return Icons.music_note;
-      case 'electric_bolt':
-        return Icons.electric_bolt;
-      case 'piano':
-        return Icons.music_note;
-      case 'graphic_eq':
-        return Icons.graphic_eq;
-      case 'touch_app':
-        return Icons.touch_app;
-      case 'hearing':
-        return Icons.hearing;
-      case 'campaign':
-        return Icons.campaign;
-      case 'visibility':
-        return Icons.visibility;
-      case 'psychology':
-        return Icons.psychology;
-      default:
-        return Icons.category;
-    }
-  }
-
-  /// Handle category tap - search for the category
-  void _onCategoryTap(String categoryName) {
-    final searchQuery = '$categoryName music';
-    _searchController.text = searchQuery;
-    _performLiveSearch(searchQuery);
   }
 
   /// Build search results view

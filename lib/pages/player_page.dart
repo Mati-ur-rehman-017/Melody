@@ -25,10 +25,40 @@ class PlayerPage extends StatefulWidget {
   State<PlayerPage> createState() => _PlayerPageState();
 }
 
-class _PlayerPageState extends State<PlayerPage> {
+class _PlayerPageState extends State<PlayerPage>
+    with SingleTickerProviderStateMixin {
   final AudioPlayerService _audioService = AudioPlayerService.instance;
   bool _showQueue = false;
   bool _showRemainingTime = false;
+
+  late final AnimationController _rotationController;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    );
+
+    _playerStateSubscription = _audioService.playerStateStream.listen((state) {
+      if (state.playing) {
+        if (!_rotationController.isAnimating) {
+          _rotationController.repeat();
+        }
+      } else {
+        _rotationController.stop();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _playerStateSubscription?.cancel();
+    _rotationController.dispose();
+    super.dispose();
+  }
 
   Future<String?> _getThumbnailPath(Track? track) async {
     if (track?.thumbnailPath == null) return null;
@@ -137,25 +167,6 @@ class _PlayerPageState extends State<PlayerPage> {
           ),
 
           const Spacer(),
-
-          // Title
-          Text(
-            'Now Playing',
-            style: AppTypography.labelMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-
-          const Spacer(),
-
-          // More options
-          IconButton(
-            onPressed: () {
-              // TODO: Show more options menu
-            },
-            icon: const Icon(Icons.more_vert),
-            color: AppColors.textSecondary,
-          ),
         ],
       ),
     );
@@ -183,24 +194,56 @@ class _PlayerPageState extends State<PlayerPage> {
 
                 return Hero(
                   tag: 'album_art',
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.75,
-                    height: MediaQuery.of(context).size.width * 0.75,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: AppRadius.xxLarge,
-                      boxShadow: AppShadows.bubbly,
+                  child: RotationTransition(
+                    turns: _rotationController,
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.75,
+                      height: MediaQuery.of(context).size.width * 0.75,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                        boxShadow: AppShadows.bubbly,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          thumbnailPath != null
+                              ? Image.file(
+                                  File(thumbnailPath),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return _buildPlaceholder();
+                                  },
+                                )
+                              : _buildPlaceholder(),
+                          // Center hole for vinyl look
+                          Center(
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.background,
+                                border: Border.all(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  width: 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: thumbnailPath != null
-                        ? Image.file(
-                            File(thumbnailPath),
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildPlaceholder();
-                            },
-                          )
-                        : _buildPlaceholder(),
                   ),
                 );
               },

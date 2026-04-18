@@ -46,6 +46,9 @@ class WaveformService {
   static final WaveformService _instance = WaveformService._internal();
   static WaveformService get instance => _instance;
 
+  final Map<String, WaveformData> _cache = {};
+  static const int _maxCacheSize = 50;
+
   WaveformService._internal();
 
   Future<WaveformData> getWaveform(
@@ -53,20 +56,30 @@ class WaveformService {
     String? audioPath,
     Duration? duration,
   }) async {
+    if (_cache.containsKey(trackId)) {
+      return _cache[trackId]!;
+    }
+
     final seed = trackId.hashCode;
-    final samples = duration != null
-        ? (duration.inSeconds * 100).clamp(100, 10000)
-        : 1000;
+    // Always generate exactly 100 bars for display to avoid downsampling flattening
+    final samples = 100;
 
     _log.fine('Generating waveform for: $trackId ($samples samples)');
 
-    return WaveformData(
+    final waveform = WaveformData(
       trackId: trackId,
       amplitudes: generateDefaultWaveform(bars: samples, seed: seed),
       samplesPerSecond: 100,
       duration: duration ?? Duration.zero,
       extractedAt: DateTime.now(),
     );
+
+    if (_cache.length >= _maxCacheSize) {
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[trackId] = waveform;
+
+    return waveform;
   }
 
   static List<double> generateDefaultWaveform({int bars = 100, int? seed}) {

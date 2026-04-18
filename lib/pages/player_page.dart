@@ -25,22 +25,33 @@ class PlayerPage extends StatefulWidget {
   State<PlayerPage> createState() => _PlayerPageState();
 }
 
-class _PlayerPageState extends State<PlayerPage>
-    with SingleTickerProviderStateMixin {
+class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
   final AudioPlayerService _audioService = AudioPlayerService.instance;
   bool _showQueue = false;
   bool _showRemainingTime = false;
 
   late final AnimationController _rotationController;
   StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<Track?>? _trackSubscription;
 
   @override
   void initState() {
     super.initState();
+    CurrentColor.instance.initialize(this);
+
     _rotationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
     );
+
+    // Initial color extraction
+    final initialTrack = _audioService.currentTrackInQueue;
+    if (initialTrack != null) {
+      CurrentColor.instance.extractFromImage(
+        initialTrack.thumbnailPath,
+        initialTrack.id,
+      );
+    }
 
     _playerStateSubscription = _audioService.playerStateStream.listen((state) {
       if (state.playing) {
@@ -51,12 +62,21 @@ class _PlayerPageState extends State<PlayerPage>
         _rotationController.stop();
       }
     });
+
+    // Also listen to track changes to extract colors
+    _trackSubscription = _audioService.playingTrackStream.listen((track) {
+      if (track != null) {
+        CurrentColor.instance.extractFromImage(track.thumbnailPath, track.id);
+      }
+    });
   }
 
   @override
   void dispose() {
     _playerStateSubscription?.cancel();
+    _trackSubscription?.cancel();
     _rotationController.dispose();
+    CurrentColor.instance.disposeAnimation();
     super.dispose();
   }
 
@@ -97,78 +117,101 @@ class _PlayerPageState extends State<PlayerPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // App bar with close button and actions
-            _buildAppBar(),
-
-            // Main content
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-
-                      // Album art with hero animation
-                      _buildAlbumArt(),
-
-                      const SizedBox(height: 40),
-
-                      // Track info
-                      _buildTrackInfo(),
-
-                      const SizedBox(height: 32),
-
-                      // Progress bar
-                      _buildProgressBar(),
-
-                      const SizedBox(height: 24),
-
-                      // Playback controls
-                      _buildControls(),
-
-                      const SizedBox(height: 32),
-
-                      // Extra actions (shuffle, repeat, sleep timer, queue)
-                      _buildExtraActions(),
-
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
+    return ListenableBuilder(
+      listenable: CurrentColor.instance,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: CurrentColor.instance.getBackgroundGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                alpha: 0.15,
               ),
             ),
+            child: SafeArea(
+              child: Stack(
+                children: [
+                  Column(
+                    children: [
+                      // Main content
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Column(
+                              children: [
+                                const SizedBox(
+                                  height: 56,
+                                ), // Add top padding to account for the back button
+                                // Album art with hero animation
+                                _buildAlbumArt(),
 
-            // Expandable queue section
-            _buildQueueSection(),
-          ],
-        ),
-      ),
-    );
-  }
+                                const SizedBox(height: 40),
 
-  Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        children: [
-          // Close button
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.keyboard_arrow_down),
-            color: AppColors.textSecondary,
-            iconSize: 32,
+                                // Track info
+                                _buildTrackInfo(),
+
+                                const SizedBox(height: 32),
+
+                                // Progress bar
+                                _buildProgressBar(),
+
+                                const SizedBox(height: 24),
+
+                                // Playback controls
+                                _buildControls(),
+
+                                const SizedBox(height: 32),
+
+                                // Extra actions (shuffle, repeat, sleep timer, queue)
+                                _buildExtraActions(),
+
+                                const SizedBox(height: 24),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Expandable queue section
+                      _buildQueueSection(),
+                    ],
+                  ),
+
+                  // Circular close button in top-left
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: CurrentColor.instance.dominantColor.withValues(
+                          alpha: 0.3,
+                        ),
+                        border: Border.all(
+                          color: CurrentColor.instance.primaryColor.withValues(
+                            alpha: 0.1,
+                          ),
+                          width: 1,
+                        ),
+                      ),
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        color: Colors.white,
+                        iconSize: 28,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-
-          const Spacer(),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -200,9 +243,24 @@ class _PlayerPageState extends State<PlayerPage>
                       width: MediaQuery.of(context).size.width * 0.75,
                       height: MediaQuery.of(context).size.width * 0.75,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: CurrentColor.instance.primaryColor.withValues(
+                          alpha: 0.1,
+                        ),
                         shape: BoxShape.circle,
-                        boxShadow: AppShadows.bubbly,
+                        boxShadow: [
+                          BoxShadow(
+                            color: CurrentColor.instance.getGlowColor(
+                              alpha: 0.5,
+                            ),
+                            blurRadius: 50,
+                            spreadRadius: 5,
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Stack(
@@ -226,9 +284,8 @@ class _PlayerPageState extends State<PlayerPage>
                                 shape: BoxShape.circle,
                                 color: AppColors.background,
                                 border: Border.all(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.2,
-                                  ),
+                                  color: CurrentColor.instance.primaryColor
+                                      .withValues(alpha: 0.2),
                                   width: 1,
                                 ),
                                 boxShadow: [
@@ -256,7 +313,11 @@ class _PlayerPageState extends State<PlayerPage>
 
   Widget _buildPlaceholder() {
     return Center(
-      child: Icon(Icons.music_note, color: AppColors.primary, size: 80),
+      child: Icon(
+        Icons.music_note,
+        color: CurrentColor.instance.primaryColor,
+        size: 80,
+      ),
     );
   }
 
@@ -372,8 +433,9 @@ class _PlayerPageState extends State<PlayerPage>
             return Column(
               children: [
                 // Waveform progress bar
-                Builder(
-                  builder: (context) {
+                ListenableBuilder(
+                  listenable: CurrentColor.instance,
+                  builder: (context, _) {
                     final track = _audioService.currentTrack;
 
                     // Get waveform data
@@ -388,35 +450,66 @@ class _PlayerPageState extends State<PlayerPage>
                           duration: duration,
                         ),
                         builder: (context, waveformSnapshot) {
+                          if (!waveformSnapshot.hasData) {
+                            return const SizedBox(height: 56);
+                          }
                           final waveformData = waveformSnapshot.requireData;
-                          return WaveformProgressBar(
-                            amplitudes: waveformData.downsampleForDisplay(
-                              targetBars: 100,
+                          return Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(28),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: CurrentColor.instance.getGlowColor(
+                                    alpha: 0.25,
+                                  ),
+                                  blurRadius: 20,
+                                  spreadRadius: 2,
+                                ),
+                              ],
                             ),
-                            duration: duration,
-                            position: position,
-                            accentColor: CurrentColor.instance.accentColor,
-                            onSeek: (seekPosition) {
-                              _audioService.seek(seekPosition);
-                            },
-                            height: 56,
+                            child: WaveformProgressBar(
+                              amplitudes: waveformData.downsampleForDisplay(
+                                targetBars: 100,
+                              ),
+                              duration: duration,
+                              position: position,
+                              accentColor: CurrentColor.instance.accentColor,
+                              onSeek: (seekPosition) {
+                                _audioService.seek(seekPosition);
+                              },
+                              height: 56,
+                            ),
                           );
                         },
                       );
                     }
 
                     // No track - show default
-                    return WaveformProgressBar(
-                      amplitudes: WaveformService.generateDefaultWaveform(
-                        bars: 100,
+                    return Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: CurrentColor.instance.getGlowColor(
+                              alpha: 0.15,
+                            ),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
-                      duration: duration,
-                      position: position,
-                      accentColor: CurrentColor.instance.accentColor,
-                      onSeek: (seekPosition) {
-                        _audioService.seek(seekPosition);
-                      },
-                      height: 56,
+                      child: WaveformProgressBar(
+                        amplitudes: WaveformService.generateDefaultWaveform(
+                          bars: 100,
+                        ),
+                        duration: duration,
+                        position: position,
+                        accentColor: CurrentColor.instance.accentColor,
+                        onSeek: (seekPosition) {
+                          _audioService.seek(seekPosition);
+                        },
+                        height: 56,
+                      ),
                     );
                   },
                 ),

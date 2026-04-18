@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -27,6 +28,7 @@ class _NamidaMiniPlayerState extends State<NamidaMiniPlayer>
     with TickerProviderStateMixin {
   late final MiniPlayerController _controller;
   late final CurrentColor _colorController;
+  StreamSubscription<Track?>? _trackSubscription;
 
   @override
   void initState() {
@@ -34,6 +36,31 @@ class _NamidaMiniPlayerState extends State<NamidaMiniPlayer>
     _controller = MiniPlayerController.instance;
     _colorController = CurrentColor.instance;
     _controller.initialize(this);
+    _colorController.initialize(this);
+
+    _trackSubscription = AudioPlayerService.instance.playingTrackStream.listen((
+      track,
+    ) {
+      if (track != null) {
+        _colorController.extractFromImage(track.thumbnailPath, track.id);
+      }
+    });
+
+    // Extract for the initially playing track if there is one
+    final initialTrack = AudioPlayerService.instance.currentTrackInQueue;
+    if (initialTrack != null) {
+      _colorController.extractFromImage(
+        initialTrack.thumbnailPath,
+        initialTrack.id,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _trackSubscription?.cancel();
+    CurrentColor.instance.disposeAnimation();
+    super.dispose();
   }
 
   @override
@@ -124,52 +151,55 @@ class _NamidaMiniPlayerState extends State<NamidaMiniPlayer>
     double maxWidth,
     double maxHeight,
   ) {
-    _colorController.extractFromImage(track.thumbnailPath, track.id);
-
     final isMinimized = animationValue < 0.5;
     final expandedProgress = (animationValue * 2).clamp(0.0, 1.0);
     final queueProgress = animationValue > 1.0
         ? ((animationValue - 1.0) * 2).clamp(0.0, 1.0)
         : 0.0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: _colorController.primaryColor.withValues(alpha: 0.95),
-        borderRadius: isMinimized
-            ? BorderRadius.circular(16)
-            : BorderRadius.zero,
-        boxShadow: isMinimized
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+    return ListenableBuilder(
+      listenable: _colorController,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            color: _colorController.primaryColor.withValues(alpha: 0.95),
+            borderRadius: isMinimized
+                ? BorderRadius.circular(16)
+                : BorderRadius.zero,
+            boxShadow: isMinimized
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (!isMinimized) _buildBackgroundImage(expandedProgress, track),
+              if (!isMinimized)
+                PartyModeContainer(
+                  opacity: expandedProgress,
+                  color: _colorController.accentColor,
                 ),
-              ]
-            : null,
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (!isMinimized) _buildBackgroundImage(expandedProgress, track),
-          if (!isMinimized)
-            PartyModeContainer(
-              opacity: expandedProgress,
-              color: _colorController.accentColor,
-            ),
-          if (isMinimized)
-            _buildMinimizedContent(track)
-          else
-            _buildExpandedContent(
-              context,
-              track,
-              expandedProgress,
-              queueProgress,
-              maxWidth,
-              maxHeight,
-            ),
-        ],
-      ),
+              if (isMinimized)
+                _buildMinimizedContent(track)
+              else
+                _buildExpandedContent(
+                  context,
+                  track,
+                  expandedProgress,
+                  queueProgress,
+                  maxWidth,
+                  maxHeight,
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

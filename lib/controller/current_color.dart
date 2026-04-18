@@ -113,6 +113,10 @@ class CurrentColor extends ChangeNotifier {
 
   /// Initialize with animation controller
   void initialize(TickerProvider vsync) {
+    if (_animationController != null) {
+      _animationController!.dispose();
+    }
+
     _animationController = AnimationController(
       vsync: vsync,
       duration: const Duration(milliseconds: 500),
@@ -122,6 +126,12 @@ class CurrentColor extends ChangeNotifier {
       _animationProgress = _animationController!.value;
       notifyListeners();
     });
+  }
+
+  /// Remove animation controller when the ticker provider is disposed
+  void disposeAnimation() {
+    _animationController?.dispose();
+    _animationController = null;
   }
 
   /// Extract colors from an image file with smooth transition

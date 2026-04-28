@@ -221,6 +221,22 @@ class YouTubeDownloadService {
     }
   }
 
+  /// Get the direct audio stream URL for playing without downloading
+  Future<String?> getAudioStreamUrl(String videoId) async {
+    _ensureClient();
+    _log.info('Fetching audio stream URL for: $videoId');
+    try {
+      final (manifest, _) = await _tryGetManifestWithClients(videoId);
+      final audioStreams = manifest.audioOnly.toList();
+      if (audioStreams.isEmpty) return null;
+      final streamInfo = manifest.audioOnly.withHighestBitrate();
+      return streamInfo.url.toString();
+    } catch (e) {
+      _log.severe('Failed to get audio stream URL: $e');
+      return null;
+    }
+  }
+
   /// Download audio from a YouTube video
   ///
   /// [videoId] - The YouTube video ID

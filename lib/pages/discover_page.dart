@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../models/trending_song.dart';
 import '../services/database_service.dart';
 import '../services/trending_service.dart';
 import '../services/youtube_download_service.dart';
+import '../services/audio_player_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/search_result_tile.dart';
 import '../widgets/trending_section.dart';
@@ -56,6 +58,12 @@ class _DiscoverPageState extends State<DiscoverPage>
 
   StreamSubscription<void>? _tracksChangedSubscription;
 
+  // Stream tracking
+  final AudioPlayer _streamPlayer = AudioPlayer();
+  String? _streamingVideoId;
+  bool _isStreamLoading = false;
+  StreamSubscription<PlayerState>? _streamPlayerStateSubscription;
+
   // Trending songs
   final TrendingService _trendingService = TrendingService();
   List<TrendingSong> _trendingSongs = [];
@@ -86,6 +94,14 @@ class _DiscoverPageState extends State<DiscoverPage>
     _tracksChangedSubscription = _dbService.tracksChanged.listen((_) {
       _loadDownloadedIds();
     });
+
+    _streamPlayerStateSubscription = _streamPlayer.playerStateStream.listen((
+      state,
+    ) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -97,6 +113,8 @@ class _DiscoverPageState extends State<DiscoverPage>
     _downloadService.dispose();
     _trendingService.dispose();
     _tracksChangedSubscription?.cancel();
+    _streamPlayerStateSubscription?.cancel();
+    _streamPlayer.dispose();
     super.dispose();
   }
 
@@ -286,6 +304,70 @@ class _DiscoverPageState extends State<DiscoverPage>
         _isLoadingMore = false;
         _hasMoreResults = false;
       });
+    }
+  }
+
+  Future<void> _toggleStream(Video video) async {
+    final videoId = video.id.value;
+
+    // If tapping the currently streaming video, toggle play/pause
+    if (_streamingVideoId == videoId) {
+      if (_streamPlayer.playing) {
+        await _streamPlayer.pause();
+      } else {
+        // Pause main app player if it's playing before we resume
+        if (AudioPlayerService.instance.isPlaying) {
+          await AudioPlayerService.instance.pause();
+        }
+        await _streamPlayer.play();
+      }
+      return;
+    }
+
+    // Otherwise, start a new stream
+    setState(() {
+      _streamingVideoId = videoId;
+      _isStreamLoading = true;
+    });
+
+    try {
+      // Pause main app player if it's playing
+      if (AudioPlayerService.instance.isPlaying) {
+        await AudioPlayerService.instance.pause();
+      }
+
+      final url = await _downloadService.getAudioStreamUrl(videoId);
+
+      if (url != null && mounted) {
+        await _streamPlayer.setUrl(url);
+        if (_streamingVideoId == videoId) {
+          // Check if user hasn't switched again
+          await _streamPlayer.play();
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load audio stream')),
+        );
+        setState(() {
+          _streamingVideoId = null;
+        });
+      }
+    } catch (e) {
+      _log.severe('Error starting stream: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Error playing stream')));
+        setState(() {
+          _streamingVideoId = null;
+        });
+      }
+    } finally {
+      if (mounted && _streamingVideoId == videoId) {
+        setState(() {
+          _isStreamLoading = false;
+        });
+      }
     }
   }
 
@@ -750,6 +832,11 @@ class _DiscoverPageState extends State<DiscoverPage>
                 isDownloading: isDownloading,
                 downloadProgress: progress,
                 onDownload: () => _downloadVideo(video),
+                isStreaming:
+                    _streamingVideoId == videoId && _streamPlayer.playing,
+                isStreamLoading:
+                    _streamingVideoId == videoId && _isStreamLoading,
+                onStreamToggle: () => _toggleStream(video),
               );
             }, childCount: _searchResults!.length + (_isLoadingMore ? 1 : 0)),
           ),

@@ -44,6 +44,15 @@ class SearchResultTile extends StatelessWidget {
   /// Callback when download button is pressed
   final VoidCallback? onDownload;
 
+  /// Whether this video is currently streaming (playing in local preview player)
+  final bool isStreaming;
+
+  /// Whether the stream URL is currently loading
+  final bool isStreamLoading;
+
+  /// Callback when stream button is toggled
+  final VoidCallback? onStreamToggle;
+
   const SearchResultTile({
     super.key,
     required this.video,
@@ -51,6 +60,9 @@ class SearchResultTile extends StatelessWidget {
     this.isDownloading = false,
     this.downloadProgress,
     this.onDownload,
+    this.isStreaming = false,
+    this.isStreamLoading = false,
+    this.onStreamToggle,
   });
 
   @override
@@ -148,6 +160,46 @@ class SearchResultTile extends StatelessWidget {
             },
           ),
         ),
+
+        // Stream play/pause overlay
+        if (onStreamToggle != null)
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: onStreamToggle,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(
+                      alpha: isStreaming || isStreamLoading ? 0.5 : 0.2,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: isStreamLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            isStreaming
+                                ? Icons.pause_circle_filled
+                                : Icons.play_circle_fill,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            size: 32,
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ),
 
         // Duration badge
         Positioned(

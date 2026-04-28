@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
@@ -34,7 +35,12 @@ Future<void> _loadThemePreference() async {
 
 /// Setup logging for debug output
 void _setupLogging() {
-  Logger.root.level = Level.ALL;
+  if (kReleaseMode) {
+    Logger.root.level = Level.OFF;
+  } else {
+    Logger.root.level = Level.ALL;
+  }
+
   Logger.root.onRecord.listen((record) {
     debugPrint(
       '[${record.level.name}] ${record.loggerName}: ${record.message}',

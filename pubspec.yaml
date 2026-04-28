@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # YouTube audio download functionality
-  youtube_explode_dart: ^2.2.1
+  youtube_explode_dart: ^3.0.5
   logging: ^1.2.0
   path_provider: ^2.1.1
 

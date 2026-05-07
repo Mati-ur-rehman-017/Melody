@@ -34,7 +34,7 @@ class _SplashPageState extends State<SplashPage>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
 
     _logoOpacity = Tween<double>(begin: 0.72, end: 1.0).animate(
@@ -59,7 +59,7 @@ class _SplashPageState extends State<SplashPage>
     // Run initialization and minimum display duration concurrently
     await Future.wait([
       _initialize(),
-      Future.delayed(const Duration(milliseconds: 2500)),
+      Future.delayed(const Duration(milliseconds: 1000)),
     ]);
 
     if (!mounted) return;
@@ -102,7 +102,7 @@ class _SplashPageState extends State<SplashPage>
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
-        transitionDuration: const Duration(milliseconds: 400),
+        transitionDuration: const Duration(milliseconds: 200),
       ),
     );
   }
@@ -132,7 +132,7 @@ class _GlowText extends StatelessWidget {
       child: ScaleTransition(
         scale: scale,
         child: Text(
-          'Melody',
+          'melody',
           style: AppTypography.displayLarge.copyWith(
             fontSize: 42,
             color: Colors.white,

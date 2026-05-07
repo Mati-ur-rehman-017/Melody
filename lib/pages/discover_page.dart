@@ -484,7 +484,7 @@ class _DiscoverPageState extends State<DiscoverPage>
           children: [
             // App name
             Text(
-              'Melody',
+              'melody',
               style: AppTypography.displayMedium.copyWith(
                 color: theme.colorScheme.onSurface,
               ),

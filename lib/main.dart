@@ -58,7 +58,7 @@ class MelodyApp extends StatelessWidget {
       valueListenable: themeModeNotifier,
       builder: (context, themeMode, child) {
         return MaterialApp(
-          title: 'Melody',
+          title: 'melody',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,

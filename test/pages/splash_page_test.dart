@@ -7,7 +7,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: SplashPage()));
 
     // Text should be present immediately after first frame
-    expect(find.text('Melody'), findsOneWidget);
+    expect(find.text('melody'), findsOneWidget);
 
     // Advance time beyond splash duration without waiting for repeating ticker
     await tester.pump(const Duration(seconds: 3));

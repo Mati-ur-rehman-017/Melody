@@ -533,23 +533,7 @@ class _DiscoverPageState extends State<DiscoverPage>
                       });
                     },
                   )
-                : Container(
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: RotationTransition(
-                      turns: _isLoadingSuggestions
-                          ? _suggestionsTurns
-                          : const AlwaysStoppedAnimation<double>(0),
-                      child: Icon(
-                        Icons.tune,
-                        size: 16,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
+                : null,
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,

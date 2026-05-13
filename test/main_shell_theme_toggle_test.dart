@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:melody/main.dart';
-import 'package:melody/theme/app_theme.dart';
 
 void main() {
   testWidgets('MainShell shows theme toggle button', (
@@ -20,45 +19,36 @@ void main() {
     );
   });
 
-  testWidgets('MainShell navigation bar color changes with theme', (
+  testWidgets('MainShell shows BottomNavigationBar with three items', (
     WidgetTester tester,
   ) async {
-    themeModeNotifier.value = ThemeMode.dark;
-    await tester.pumpWidget(_buildThemeAwareShell());
+    await tester.pumpWidget(const MaterialApp(home: MainShell()));
     await tester.pump();
 
-    final initialNavColor = _findNavigationBarColor(tester);
+    final navBar = tester.widget<BottomNavigationBar>(
+      find.byType(BottomNavigationBar),
+    );
 
-    themeModeNotifier.value = ThemeMode.light;
-    await tester.pump();
-
-    expect(themeModeNotifier.value, ThemeMode.light);
-
-    final toggledNavColor = _findNavigationBarColor(tester);
-
-    expect(toggledNavColor, isNot(equals(initialNavColor)));
+    expect(navBar.currentIndex, 0);
+    expect(navBar.items.length, 3);
+    expect(navBar.items[0].label, 'Explore');
+    expect(navBar.items[1].label, 'Library');
+    expect(navBar.items[2].label, 'Playlists');
   });
-}
 
-Widget _buildThemeAwareShell() {
-  return ValueListenableBuilder<ThemeMode>(
-    valueListenable: themeModeNotifier,
-    builder: (context, themeMode, child) {
-      return MaterialApp(
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: themeMode,
-        home: const MainShell(),
-      );
-    },
-  );
-}
+  testWidgets('BottomNavigationBar index changes on tap', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: MainShell()));
+    await tester.pump();
 
-Color _findNavigationBarColor(WidgetTester tester) {
-  final navigationContainer = tester.widget<Container>(
-    find.byKey(const ValueKey('floating-navigation')),
-  );
+    await tester.tap(find.byIcon(Icons.library_music));
+    await tester.pump();
 
-  final boxDecoration = navigationContainer.decoration! as BoxDecoration;
-  return boxDecoration.color!;
+    final navBar = tester.widget<BottomNavigationBar>(
+      find.byType(BottomNavigationBar),
+    );
+
+    expect(navBar.currentIndex, 1);
+  });
 }

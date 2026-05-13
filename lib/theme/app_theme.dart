@@ -410,6 +410,13 @@ class AppTheme {
         elevation: 4,
         shape: const CircleBorder(),
       ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: Color(0xFFE07A5F),
+        unselectedItemColor: Color(0xFF666666),
+        type: BottomNavigationBarType.fixed,
+        elevation: 4,
+      ),
       iconTheme: const IconThemeData(color: Color(0xFF1F1F1F), size: 24),
     );
   }
@@ -510,11 +517,11 @@ class AppTheme {
         shape: CircleBorder(),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Color(0xFF1E1E1E),
         selectedItemColor: Colors.white,
         unselectedItemColor: Color(0xFF666666),
         type: BottomNavigationBarType.fixed,
-        elevation: 0,
+        elevation: 4,
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: Colors.white,

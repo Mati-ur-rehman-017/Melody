@@ -124,9 +124,11 @@ class YouTubeDownloadService {
     _log.fine('Getting suggestions for: $query');
 
     try {
-      final suggestions = await _yt!.search.getQuerySuggestions(query);
+      final suggestions = await _yt!.search.getQuerySuggestions('song $query');
       _log.fine('Got ${suggestions.length} suggestions');
-      return suggestions;
+      return suggestions
+          .map((s) => s.startsWith('song ') ? s.substring(5) : s)
+          .toList();
     } catch (e) {
       _log.warning('Failed to get suggestions: $e');
       return [];

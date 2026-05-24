@@ -14,7 +14,8 @@ import '../widgets/search_result_tile.dart';
 final Logger _log = Logger('SearchPage');
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+  final String? initialQuery;
+  const SearchPage({super.key, this.initialQuery});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -22,6 +23,7 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final _searchController = TextEditingController();
+  final _focusNode = FocusNode();
   final _scrollController = ScrollController();
   final _downloadService = YouTubeDownloadService();
   final _dbService = DatabaseService.instance;
@@ -71,11 +73,21 @@ class _SearchPageState extends State<SearchPage> {
         setState(() {}); // Trigger rebuild to update play/pause icon
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+
+    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+      _searchController.text = widget.initialQuery!;
+      _performLiveSearch(widget.initialQuery!);
+    }
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _focusNode.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     _downloadService.dispose();
@@ -361,11 +373,15 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _buildSearchBar(),
-        Expanded(child: _buildContent()),
-      ],
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildSearchBar(),
+            Expanded(child: _buildContent()),
+          ],
+        ),
+      ),
     );
   }
 
@@ -374,6 +390,7 @@ class _SearchPageState extends State<SearchPage> {
       padding: const EdgeInsets.all(8.0),
       child: TextField(
         controller: _searchController,
+        focusNode: _focusNode,
         decoration: InputDecoration(
           hintText: 'Search YouTube...',
           prefixIcon: const Icon(Icons.search),

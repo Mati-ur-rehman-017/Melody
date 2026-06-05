@@ -59,7 +59,7 @@ class MiniPlayer extends StatelessWidget {
             );
           },
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            margin: const EdgeInsets.only(top: 8),
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: AppRadius.xLarge,

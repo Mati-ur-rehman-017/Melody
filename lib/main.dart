@@ -191,7 +191,7 @@ class _MainShellState extends State<MainShell> {
           ),
 
           // Mini player (shows when audio is playing)
-          const Positioned(bottom: 0, left: 0, right: 0, child: MiniPlayer()),
+          const Positioned(bottom: 4, left: 0, right: 0, child: MiniPlayer()),
 
           SafeArea(
             child: Padding(

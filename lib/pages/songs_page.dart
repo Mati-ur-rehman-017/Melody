@@ -291,7 +291,7 @@ class _SongsPageState extends State<SongsPage>
         children: [
           if (_allTracks.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Container(
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
@@ -325,49 +325,15 @@ class _SongsPageState extends State<SongsPage>
                 ),
               ),
             ),
-
-          if (_allTracks.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Featured Tracks',
-                    style: AppTypography.heading3.copyWith(
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: Row(
-                      children: [
-                        Text(
-                          'View all',
-                          style: AppTypography.labelLarge.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
           if (_allTracks.isEmpty)
             _buildEmptySongsState()
           else
             _buildFeaturedTracksList(),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
+    }
+
 
   Widget _buildEmptySongsState() {
     final theme = Theme.of(context);
@@ -411,7 +377,6 @@ class _SongsPageState extends State<SongsPage>
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24),
           itemCount: _filteredTracks.length,
           itemBuilder: (context, index) {
             final track = _filteredTracks[index];
@@ -437,168 +402,125 @@ class _SongsPageState extends State<SongsPage>
   }) {
     final theme = Theme.of(context);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: AppRadius.large,
-        boxShadow: AppShadows.bubbly,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: AppRadius.large,
-        child: InkWell(
-          borderRadius: AppRadius.large,
-          onTap: () => _playTrack(track),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _playTrack(track),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
           child: Row(
             children: [
               if (isCurrentTrack)
                 Container(
                   width: 4,
-                  height: 88,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: AppColors.primary,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      bottomLeft: Radius.circular(24),
-                    ),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      FutureBuilder<String?>(
-                        future: _getThumbnailFullPath(track),
-                        builder: (context, snapshot) {
-                          final thumbnailPath = snapshot.data;
-
-                          return Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              borderRadius: AppRadius.medium,
-                              color: AppColors.secondary.withValues(alpha: 0.1),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: AppRadius.medium,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  thumbnailPath != null
-                                      ? Image.file(
-                                          File(thumbnailPath),
-                                          fit: BoxFit.cover,
-                                          width: 64,
-                                          height: 64,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return Icon(
-                                                  Icons.music_note,
-                                                  color: AppColors.secondary,
-                                                  size: 32,
-                                                );
-                                              },
-                                        )
-                                      : Icon(
-                                          Icons.music_note,
-                                          color: AppColors.secondary,
-                                          size: 32,
-                                        ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    track.title,
-                                    style: AppTypography.labelLarge.copyWith(
-                                      color: isCurrentTrack
-                                          ? AppColors.primary
-                                          : theme.colorScheme.onSurface,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (isPlaying) ...[
-                                  const SizedBox(width: 8),
-                                  const AudioVisualizer(),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${track.author} • ${track.formattedDuration}',
-                              style: AppTypography.bodySmall.copyWith(
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.7,
-                                ),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      PopupMenuButton<String>(
-                        icon: Icon(
-                          Icons.more_vert,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.3,
-                          ),
-                        ),
-                        onSelected: (value) {
-                          if (value == 'add_to_playlist') {
-                            _showAddToPlaylistDialog(track);
-                          } else if (value == 'delete') {
-                            _deleteTrack(track);
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'add_to_playlist',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.playlist_add,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                                const SizedBox(width: 8),
-                                Text('Add to Playlist'),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete, color: Colors.red),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Delete',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ],
-                            ),
-                          ),
+              if (isCurrentTrack) const SizedBox(width: 12),
+              FutureBuilder<String?>(
+                future: _getThumbnailFullPath(track),
+                builder: (context, snapshot) {
+                  final thumbnailPath = snapshot.data;
+                  return Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: AppRadius.medium,
+                      color: AppColors.secondary.withValues(alpha: 0.1),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: AppRadius.medium,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          thumbnailPath != null
+                              ? Image.file(
+                                  File(thumbnailPath),
+                                  fit: BoxFit.cover,
+                                  width: 56,
+                                  height: 56,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Icon(Icons.music_note, color: AppColors.secondary, size: 28),
+                                )
+                              : Icon(Icons.music_note, color: AppColors.secondary, size: 28),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.title,
+                      style: AppTypography.labelLarge.copyWith(
+                        color: isCurrentTrack
+                            ? AppColors.primary
+                            : theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${track.author} • ${track.formattedDuration}',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(width: 8),
+              if (isPlaying)
+                const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: AudioVisualizer(),
+                ),
+              PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  size: 20,
+                ),
+                onSelected: (value) {
+                  if (value == 'add_to_playlist') {
+                    _showAddToPlaylistDialog(track);
+                  } else if (value == 'delete') {
+                    _deleteTrack(track);
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'add_to_playlist',
+                    child: Row(
+                      children: [
+                        Icon(Icons.playlist_add, color: theme.colorScheme.onSurface),
+                        const SizedBox(width: 8),
+                        const Text('Add to Playlist'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete, color: Colors.red),
+                        const SizedBox(width: 8),
+                        const Text('Delete', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

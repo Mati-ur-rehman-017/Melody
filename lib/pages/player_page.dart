@@ -149,27 +149,27 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                                 // Album art with hero animation
                                 _buildAlbumArt(),
 
-                                const SizedBox(height: 40),
+                                const SizedBox(height: 24),
 
                                 // Track info
                                 _buildTrackInfo(),
 
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 20),
 
                                 // Progress bar
                                 _buildProgressBar(),
 
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 16),
 
                                 // Playback controls
                                 _buildControls(),
 
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 20),
 
                                 // Extra actions (shuffle, repeat, sleep timer, queue)
                                 _buildExtraActions(),
 
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 16),
                               ],
                             ),
                           ),
@@ -240,8 +240,8 @@ class _PlayerPageState extends State<PlayerPage> with TickerProviderStateMixin {
                   child: RotationTransition(
                     turns: _rotationController,
                     child: Container(
-                      width: MediaQuery.of(context).size.width * 0.75,
-                      height: MediaQuery.of(context).size.width * 0.75,
+                      width: MediaQuery.of(context).size.width * 0.7,
+                      height: MediaQuery.of(context).size.width * 0.7,
                       decoration: BoxDecoration(
                         color: CurrentColor.instance.primaryColor.withValues(
                           alpha: 0.1,

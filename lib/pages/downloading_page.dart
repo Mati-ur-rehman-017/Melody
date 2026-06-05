@@ -4,14 +4,14 @@ import '../models/download_task.dart';
 import '../services/download_manager_service.dart';
 import '../theme/app_theme.dart';
 
-class DownloadsPage extends StatefulWidget {
-  const DownloadsPage({super.key});
+class DownloadingPage extends StatefulWidget {
+  const DownloadingPage({super.key});
 
   @override
-  State<DownloadsPage> createState() => _DownloadsPageState();
+  State<DownloadingPage> createState() => _DownloadingPageState();
 }
 
-class _DownloadsPageState extends State<DownloadsPage>
+class _DownloadingPageState extends State<DownloadingPage>
     with AutomaticKeepAliveClientMixin {
   final _manager = DownloadManagerService.instance;
 
@@ -56,7 +56,7 @@ class _DownloadsPageState extends State<DownloadsPage>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Downloads',
+                        'Downloading',
                         style: AppTypography.displayMedium.copyWith(
                           color: theme.colorScheme.onSurface,
                         ),
@@ -149,14 +149,14 @@ class _DownloadsPageState extends State<DownloadsPage>
             ),
             const SizedBox(height: 16),
             Text(
-              'No downloads yet',
+              'No downloads in progress',
               style: AppTypography.heading3.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Downloads from Search will appear here',
+              'Downloading from Search will appear here',
               style: AppTypography.bodyMedium.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),

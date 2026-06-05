@@ -4,7 +4,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
 
 import 'pages/discover_page.dart';
-import 'pages/downloads_page.dart';
+import 'pages/downloading_page.dart';
 import 'pages/playlists_page.dart';
 import 'pages/songs_page.dart';
 import 'pages/splash_page.dart';
@@ -87,24 +87,36 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   late PageController _pageController;
+  int _activeDownloadCount = 0;
+  late final DownloadManagerService _downloadManager;
 
   final List<Widget> _pages = const [
     DiscoverPage(),
     SongsPage(),
+    DownloadingPage(),
     PlaylistsPage(),
-    DownloadsPage(),
   ];
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
+    _downloadManager = DownloadManagerService.instance;
+    _activeDownloadCount = _downloadManager.activeTasks.length;
+    _downloadManager.addListener(_onDownloadsChanged);
   }
 
   @override
   void dispose() {
+    _downloadManager.removeListener(_onDownloadsChanged);
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _onDownloadsChanged() {
+    setState(() {
+      _activeDownloadCount = _downloadManager.activeTasks.length;
+    });
   }
 
   /// Handle page change from swipe
@@ -141,20 +153,31 @@ class _MainShellState extends State<MainShell> {
         onTap: _onNavTap,
         type: BottomNavigationBarType.fixed,
         elevation: 4,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Explore'),
-          BottomNavigationBarItem(
+        selectedItemColor: const Color(0xFFE07A5F),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Explore'),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.library_music),
             label: 'Library',
           ),
           BottomNavigationBarItem(
+            icon: _activeDownloadCount > 0
+                ? Badge(
+                    label: Text('$_activeDownloadCount'),
+                    child: const Icon(Icons.download_outlined),
+                  )
+                : const Icon(Icons.download_outlined),
+            activeIcon: _activeDownloadCount > 0
+                ? Badge(
+                    label: Text('$_activeDownloadCount'),
+                    child: const Icon(Icons.download),
+                  )
+                : const Icon(Icons.download),
+            label: 'Downloading',
+          ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.queue_music),
             label: 'Playlists',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.download_outlined),
-            activeIcon: Icon(Icons.download),
-            label: 'Downloads',
           ),
         ],
       ),

@@ -5,7 +5,9 @@ import 'package:logging/logging.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../models/download_task.dart';
 import '../services/database_service.dart';
+import '../services/download_manager_service.dart';
 import '../services/youtube_download_service.dart';
 import '../services/audio_player_service.dart';
 import '../widgets/search_result_tile.dart';
@@ -45,7 +47,7 @@ class _SearchPageState extends State<SearchPage> {
 
   // Download tracking
   Set<String> _downloadedIds = {};
-  final Map<String, double> _activeDownloads = {};
+  final _downloadManager = DownloadManagerService.instance;
 
   StreamSubscription<void>? _tracksChangedSubscription;
 
@@ -74,6 +76,8 @@ class _SearchPageState extends State<SearchPage> {
       }
     });
 
+    _downloadManager.addListener(_onDownloadsChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -84,12 +88,17 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  void _onDownloadsChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _debounceTimer?.cancel();
     _focusNode.dispose();
     _searchController.dispose();
     _scrollController.dispose();
+    _downloadManager.removeListener(_onDownloadsChanged);
     _downloadService.dispose();
     _tracksChangedSubscription?.cancel();
     _streamPlayerStateSubscription?.cancel();
@@ -307,68 +316,21 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
-  /// Download a video
-  Future<void> _downloadVideo(Video video) async {
+  /// Download a video via DownloadManagerService
+  void _downloadVideo(Video video) {
     final videoId = video.id.value;
 
-    // Already downloading or downloaded
-    if (_activeDownloads.containsKey(videoId) ||
-        _downloadedIds.contains(videoId)) {
+    final existing = _downloadManager.tasks.where((t) => t.videoId == videoId);
+    if (existing.isNotEmpty || _downloadedIds.contains(videoId)) {
       return;
     }
 
-    setState(() {
-      _activeDownloads[videoId] = 0.0;
-    });
-
-    try {
-      final result = await _downloadService.downloadAudio(
-        videoId,
-        onProgress: (progress) {
-          setState(() {
-            _activeDownloads[videoId] = progress.percentage / 100;
-          });
-        },
-      );
-
-      setState(() {
-        _activeDownloads.remove(videoId);
-      });
-
-      if (result.success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Downloaded: ${video.title}'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.errorMessage ?? 'Download failed'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      _log.severe('Download error: $e');
-      setState(() {
-        _activeDownloads.remove(videoId);
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Download failed: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    _downloadManager.addDownload(
+      videoId: videoId,
+      title: video.title,
+      author: video.author,
+      thumbnailUrl: video.thumbnails.mediumResUrl,
+    );
   }
 
   @override
@@ -650,8 +612,14 @@ class _SearchPageState extends State<SearchPage> {
               final video = _searchResults![index];
               final videoId = video.id.value;
               final isDownloaded = _downloadedIds.contains(videoId);
-              final isDownloading = _activeDownloads.containsKey(videoId);
-              final progress = _activeDownloads[videoId];
+              final dlTask = _downloadManager.tasks
+                  .where((t) => t.videoId == videoId)
+                  .firstOrNull;
+              final isDownloading =
+                  dlTask != null &&
+                  (dlTask.status == DownloadStatus.downloading ||
+                      dlTask.status == DownloadStatus.pending);
+              final progress = dlTask?.progress;
 
               return SearchResultTile(
                 video: video,

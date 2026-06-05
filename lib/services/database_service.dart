@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../models/download_task.dart';
 import '../models/playlist.dart';
 import '../models/track.dart';
 
@@ -13,7 +14,7 @@ import '../models/track.dart';
 final Logger _log = Logger('DatabaseService');
 
 /// Database version for migrations
-const int _databaseVersion = 4;
+const int _databaseVersion = 5;
 
 /// Database filename
 const String _databaseName = 'melody.db';
@@ -99,6 +100,23 @@ class DatabaseService {
       CREATE INDEX idx_tracks_downloaded_at ON tracks(downloaded_at)
     ''');
 
+    // Download tasks table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS download_tasks (
+        video_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        author TEXT NOT NULL,
+        thumbnail_url TEXT,
+        status INTEGER NOT NULL,
+        progress REAL NOT NULL DEFAULT 0.0,
+        error_message TEXT,
+        user_facing_message TEXT,
+        started_at INTEGER NOT NULL,
+        completed_at INTEGER,
+        retry_count INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
     _log.info('Database tables created');
   }
 
@@ -133,6 +151,27 @@ class DatabaseService {
         )
       ''');
       _log.info('Migration to v4 complete');
+    }
+
+    // Migration from v4 to v5: add download_tasks table
+    if (oldVersion < 5) {
+      _log.info('Creating download_tasks table...');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS download_tasks (
+          video_id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          author TEXT NOT NULL,
+          thumbnail_url TEXT,
+          status INTEGER NOT NULL,
+          progress REAL NOT NULL DEFAULT 0.0,
+          error_message TEXT,
+          user_facing_message TEXT,
+          started_at INTEGER NOT NULL,
+          completed_at INTEGER,
+          retry_count INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+      _log.info('Migration to v5 complete');
     }
   }
 
@@ -299,6 +338,77 @@ class DatabaseService {
       'SELECT COUNT(*) as count FROM tracks',
     );
     return result.first['count'] as int;
+  }
+
+  // ==================== DOWNLOAD TASK METHODS ====================
+
+  /// Insert or replace a download task
+  Future<void> insertDownloadTask(DownloadTask task) async {
+    _ensureInitialized();
+    _log.fine('Inserting download task: ${task.videoId}');
+    await _database!.insert(
+      'download_tasks',
+      task.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Update an existing download task
+  Future<void> updateDownloadTask(DownloadTask task) async {
+    _ensureInitialized();
+    _log.fine('Updating download task: ${task.videoId}');
+    await _database!.update(
+      'download_tasks',
+      task.toMap(),
+      where: 'video_id = ?',
+      whereArgs: [task.videoId],
+    );
+  }
+
+  /// Get all download tasks ordered by started_at DESC
+  Future<List<DownloadTask>> getAllDownloadTasks() async {
+    _ensureInitialized();
+    _log.fine('Getting all download tasks');
+    final maps = await _database!.query(
+      'download_tasks',
+      orderBy: 'started_at DESC',
+    );
+    return maps.map((map) => DownloadTask.fromMap(map)).toList();
+  }
+
+  /// Get a single download task by video ID
+  Future<DownloadTask?> getDownloadTask(String videoId) async {
+    _ensureInitialized();
+    final maps = await _database!.query(
+      'download_tasks',
+      where: 'video_id = ?',
+      whereArgs: [videoId],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return DownloadTask.fromMap(maps.first);
+  }
+
+  /// Delete a download task
+  Future<void> deleteDownloadTask(String videoId) async {
+    _ensureInitialized();
+    _log.fine('Deleting download task: $videoId');
+    await _database!.delete(
+      'download_tasks',
+      where: 'video_id = ?',
+      whereArgs: [videoId],
+    );
+  }
+
+  /// Delete all completed download tasks
+  Future<void> clearCompletedDownloadTasks() async {
+    _ensureInitialized();
+    _log.fine('Clearing completed download tasks');
+    await _database!.delete(
+      'download_tasks',
+      where: 'status = ?',
+      whereArgs: [DownloadStatus.completed.index],
+    );
   }
 
   /// Close the database connection

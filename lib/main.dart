@@ -4,9 +4,11 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
 
 import 'pages/discover_page.dart';
+import 'pages/downloads_page.dart';
 import 'pages/playlists_page.dart';
 import 'pages/songs_page.dart';
 import 'pages/splash_page.dart';
+import 'services/download_manager_service.dart';
 import 'services/media_notification_service.dart';
 import 'services/theme_service.dart';
 import 'theme/app_theme.dart';
@@ -25,6 +27,9 @@ void main() async {
 
   _setupLogging();
   await _loadThemePreference();
+
+  // Initialize download manager (loads persisted tasks from DB)
+  await DownloadManagerService.instance.initialize();
 
   runApp(const MelodyApp());
 }
@@ -87,6 +92,7 @@ class _MainShellState extends State<MainShell> {
     DiscoverPage(),
     SongsPage(),
     PlaylistsPage(),
+    DownloadsPage(),
   ];
 
   @override
@@ -144,6 +150,11 @@ class _MainShellState extends State<MainShell> {
           BottomNavigationBarItem(
             icon: Icon(Icons.queue_music),
             label: 'Playlists',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.download_outlined),
+            activeIcon: Icon(Icons.download),
+            label: 'Downloads',
           ),
         ],
       ),
